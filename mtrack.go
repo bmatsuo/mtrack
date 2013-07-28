@@ -27,7 +27,7 @@ func CheckType(err error) {
 
 func main() {
 	httpaddr := flag.String("http", ":7890", "http server bind address")
-	dbpath := flag.String("db", "./mtrack.sqlite", "sqlite3 database path")
+	dbpath := flag.String("db", "./data/mtrack.sqlite", "sqlite3 database path")
 	media := flag.String("media", "", "media directories separated by ':'")
 	flag.Parse()
 
