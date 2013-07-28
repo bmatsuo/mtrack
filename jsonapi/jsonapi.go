@@ -17,14 +17,11 @@ import (
 	"github.com/bitly/go-simplejson"
 )
 
-var ErrNotJson = fmt.Errorf("request is not a JSON POST/PUT")
+var ErrNotJson = fmt.Errorf("request is not JSON")
 
 type Map map[string]interface{}
 
-func ReadRequest(req *http.Request) (*simplejson.Json, error) {
-	if req.Method != "POST" && req.Method != "PUT" {
-		return nil, ErrNotJson
-	}
+func Read(req *http.Request) (*simplejson.Json, error) {
 	contentType := req.Header.Get("Content-Type")
 	contentType = strings.SplitN(contentType, ";", 2)[0]
 	contentType = strings.TrimFunc(contentType, unicode.IsSpace)

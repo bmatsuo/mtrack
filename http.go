@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/bmatsuo/mtrack/jsonapi"
+	"github.com/gorilla/mux"
 )
 
 var HTTPConfig struct {
@@ -23,13 +23,209 @@ func HTTPStart() error {
 	router := mux.NewRouter()
 	router.NotFoundHandler = http.HandlerFunc(http.NotFound)
 	router.Methods("GET").Path("/media").HandlerFunc(MediaIndex)
-	//router.Methods("POST").Path("/start").HandlerFunc(Start)
+	router.Methods("POST").Path("/start").HandlerFunc(Start)
 	router.Methods("GET").Path("/in_progress").HandlerFunc(InProgressIndex)
-	//router.Methods("POST").Path("/finish").HandlerFunc(Finish)
+	router.Methods("POST").Path("/finish").HandlerFunc(Finish)
 	router.Methods("GET").Path("/finished").HandlerFunc(FinishedIndex)
 
 	log.Printf("Serving HTTP on at %v", HTTPConfig.Addr)
 	return http.ListenAndServe(HTTPConfig.Addr, router)
+}
+
+func Start(resp http.ResponseWriter, req *http.Request) {
+	params, err := jsonapi.Read(req)
+	if err == jsonapi.ErrNotJson {
+		jsonapi.Error(resp, 415, "not json")
+		return
+	}
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 400, "request was not valid json")
+		return
+	}
+
+	mediaid, err := params.Get("mediaId").String()
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 400, "invalid mediaId")
+		return
+	}
+
+	userid, err := params.Get("userId").String()
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 400, "invalid userId")
+		return
+	}
+
+	row := DB.QueryRow(`
+		SELECT COUNT(*)
+		FROM UserStartedMedia
+		WHERE MediaId = ? AND UserId = ?`,
+		mediaid, userid)
+	var count int
+	err = row.Scan(&count)
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+	if count > 0 {
+		jsonapi.Error(resp, 400, "already started")
+		return
+	}
+
+	row = DB.QueryRow(`
+		SELECT COUNT(*)
+		FROM UserFinishedMedia
+		WHERE MediaId = ? AND UserId = ?`,
+		mediaid, userid)
+	err = row.Scan(&count)
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+	if count > 0 {
+		q := `DELETE FROM UserFinishedMedia WHERE MediaId = ? AND UserId = ?`
+		_, err := tx.Exec(q, mediaid, userid)
+		if err != nil {
+			log.Printf("%q: couldn't remove finished: %v", req.URL.Path, err)
+			err := tx.Rollback()
+			if err != nil {
+				log.Printf("%q: couldn't rollback transaction: %v",
+					req.URL.Path, err)
+			}
+			jsonapi.Error(resp, 500, "internal error")
+			return
+		}
+	}
+
+	q := `INSERT INTO UserStartedMedia(MediaId, UserId) Values(?, ?)`
+	_, err = tx.Exec(q, mediaid, userid)
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		err := tx.Rollback()
+		if err != nil {
+			log.Printf("%q: couldn't rollback transaction: %v",
+				req.URL.Path, err)
+		}
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+
+	jsonapi.Success(resp, nil)
+}
+
+func Finish(resp http.ResponseWriter, req *http.Request) {
+	params, err := jsonapi.Read(req)
+	if err == jsonapi.ErrNotJson {
+		jsonapi.Error(resp, 415, "not json")
+		return
+	}
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 400, "request was not valid json")
+		return
+	}
+
+	mediaid, err := params.Get("mediaId").String()
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 400, "invalid mediaId")
+		return
+	}
+
+	userid, err := params.Get("userId").String()
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 400, "invalid userId")
+		return
+	}
+
+	row := DB.QueryRow(`
+		SELECT COUNT(*)
+		FROM UserFinishedMedia
+		WHERE MediaId = ? AND UserId = ?`,
+		mediaid, userid)
+	var count int
+	err = row.Scan(&count)
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+	if count > 0 {
+		jsonapi.Error(resp, 400, "already finished")
+		return
+	}
+
+	row = DB.QueryRow(`
+		SELECT COUNT(*)
+		FROM UserStartedMedia
+		WHERE MediaId = ? AND UserId = ?`,
+		mediaid, userid)
+	err = row.Scan(&count)
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+	if count > 0 {
+		q := `DELETE FROM UserStartedMedia WHERE MediaId = ? AND UserId = ?`
+		_, err := tx.Exec(q, mediaid, userid)
+		if err != nil {
+			log.Printf("%q: couldn't remove started: %v", req.URL.Path, err)
+			err := tx.Rollback()
+			if err != nil {
+				log.Printf("%q: couldn't rollback transaction: %v",
+					req.URL.Path, err)
+			}
+			jsonapi.Error(resp, 500, "internal error")
+			return
+		}
+	}
+
+	q := `INSERT INTO UserFinishedMedia(MediaId, UserId) Values(?, ?)`
+	_, err = tx.Exec(q, mediaid, userid)
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		err := tx.Rollback()
+		if err != nil {
+			log.Printf("%q: couldn't rollback transaction: %v",
+				req.URL.Path, err)
+		}
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Printf("%q: %v", req.URL.Path, err)
+		jsonapi.Error(resp, 500, "internal error")
+		return
+	}
+
+	jsonapi.Success(resp, nil)
 }
 
 func MediaIndex(resp http.ResponseWriter, req *http.Request) {
@@ -56,7 +252,7 @@ func MediaIndex(resp http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		results = append(results, map[string]interface{}{
-			"id":       mediaid,
+			"mediaId":  mediaid,
 			"path":     path,
 			"modified": modtime,
 		})
@@ -97,8 +293,8 @@ func InProgressIndex(resp http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		results = append(results, map[string]interface{}{
-			"id":      mediaid,
-			"user_id": userid,
+			"mediaId": mediaid,
+			"userId":  userid,
 			"started": started,
 		})
 	}
@@ -138,8 +334,8 @@ func FinishedIndex(resp http.ResponseWriter, req *http.Request) {
 			continue
 		}
 		results = append(results, map[string]interface{}{
-			"id":       mediaid,
-			"user_id":  userid,
+			"mediaId":  mediaid,
+			"userId":   userid,
 			"finished": finished,
 		})
 	}
