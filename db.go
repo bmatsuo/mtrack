@@ -29,36 +29,54 @@ func dbInitMigrations() error {
 	return dbQueryChain(
 		`
 		CREATE TABLE IF NOT EXISTS Media(
-			MediaId TEXT PRIMARY KEY ON CONFLICT ABORT,
-			Path TEXT NOT NULL,
-			ModTime DATETIME NOT NULL,
-			Created DATETIME DEFAULT CURRENT_TIMESTAMP
+			MediaId  TEXT PRIMARY KEY ON CONFLICT ABORT,
+			Path     TEXT NOT NULL,
+			PathNorm TEXT NOT NULL,
+			ModTime  DATETIME NOT NULL,
+			Created  DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
 		`,
+		`CREATE INDEX IF NOT EXISTS MediaPathNorm ON Media (PathNorm ASC)`,
+		`CREATE INDEX IF NOT EXISTS MediaModTime ON Media (ModTime DESC)`,
+		`CREATE INDEX IF NOT EXISTS MediaCreated ON Media (Created ASC)`,
 		`
 		CREATE TABLE IF NOT EXISTS Users(
-			Email   TEXT PRIMARY KEY,
+			UserId	TEXT PRIMARY KEY,
+			Email   TEXT UNIQUE ON CONFLICT ABORT,
 			Created DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
 		`,
+		`CREATE INDEX IF NOT EXISTS UsersCreated ON Users (Created ASC)`,
 		`
 		CREATE TABLE IF NOT EXISTS UserStartedMedia(
-			Email   TEXT,
-			MediaId TEXT,
+			UserId  TEXT NOT NULL,
+			MediaId TEXT NOT NULL,
 			Started DATETIME DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (Email, MediaId) ON CONFLICT ABORT,
-			FOREIGN KEY (Email) REFERENCES Users(Email),
+			PRIMARY KEY (UserId, MediaId) ON CONFLICT ABORT,
+			FOREIGN KEY (UserId) REFERENCES Users(Id),
 			FOREIGN KEY (MediaId) REFERENCES Media(Id)
+		)
+		`,
+		`
+		CREATE INDEX IF NOT EXISTS UserStartedMediaStarted
+		ON UserStartedMedia (
+			Started DESC
 		)
 		`,
 		`
 		CREATE TABLE IF NOT EXISTS UserFinishedMedia(
-			Email    TEXT,
-			MediaId  TEXT,
+			UserId  TEXT NOT NULL,
+			MediaId TEXT NOT NULL,
 			Finished DATETIME DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (Email, MediaId) ON CONFLICT ABORT,
-			FOREIGN KEY (Email) REFERENCES Users(Email),
+			PRIMARY KEY (UserId, MediaId) ON CONFLICT ABORT,
+			FOREIGN KEY (UserId) REFERENCES Users(Id),
 			FOREIGN KEY (MediaId) REFERENCES Media(Id)
+		)
+		`,
+		`
+		CREATE INDEX IF NOT EXISTS UserFinishedMediaFinished
+		ON UserFinishedMedia (
+			Finished DESC
 		)
 		`,
 	)
