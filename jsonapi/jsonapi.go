@@ -54,12 +54,12 @@ func Success(resp http.ResponseWriter, result map[string]interface{}) error {
 		return err
 	}
 
+	resp.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_, err = resp.Write(p)
 	return err
 }
 
 func Error(resp http.ResponseWriter, code int, v ...interface{}) error {
-	resp.WriteHeader(code)
 	p, err := json.Marshal(map[string]interface{}{
 		"status": "failure",
 		"reason": fmt.Sprint(v...),
@@ -67,6 +67,9 @@ func Error(resp http.ResponseWriter, code int, v ...interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	resp.Header().Set("Content-Type", "application/json; charset=utf-8")
+	resp.WriteHeader(code)
 	_, err = resp.Write(p)
 	return err
 }
