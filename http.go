@@ -29,5 +29,4 @@ func HTTPStart() error {
 
 func Index(resp http.ResponseWriter, req *http.Request) {
 	fmt.Fprintln(resp, "<h1>boom</h1>")
-
 }
