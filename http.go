@@ -7,13 +7,36 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"os/exec"
 	"time"
 
 	"github.com/bmatsuo/mtrack/jsonapi"
 	"github.com/gorilla/mux"
 )
+
+func InternalError(resp http.ResponseWriter, req *http.Request, v ...interface{}) {
+	HTTPLog(req, v...)
+	jsonapi.Error(resp, 500, "internal error")
+	return
+}
+
+func NotJson(resp http.ResponseWriter, req *http.Request) {
+	jsonapi.Error(resp, 415, "Content-Type is not application/json")
+	return
+}
+
+func NotFound(resp http.ResponseWriter, req *http.Request, v ...interface{}) {
+	jsonapi.Error(resp, 404, "not found")
+	return
+}
+
+func HTTPLog(req *http.Request, v ...interface{}) {
+	log.Printf("%q: %v", req.URL.Path, fmt.Sprint(v...))
+}
 
 var HTTPConfig struct {
 	Addr string
@@ -22,6 +45,7 @@ var HTTPConfig struct {
 func HTTPStart() error {
 	router := mux.NewRouter()
 	router.NotFoundHandler = http.HandlerFunc(http.NotFound)
+	router.Methods("POST").Path("/open").HandlerFunc(Open)
 	router.Methods("GET").Path("/media").HandlerFunc(MediaIndex)
 	router.Methods("POST").Path("/start").HandlerFunc(Start)
 	router.Methods("GET").Path("/in_progress").HandlerFunc(InProgressIndex)
@@ -32,10 +56,40 @@ func HTTPStart() error {
 	return http.ListenAndServe(HTTPConfig.Addr, router)
 }
 
+func Open(resp http.ResponseWriter, req *http.Request) {
+	params, err := jsonapi.Read(req)
+	if err == jsonapi.ErrNotJson {
+		NotJson(resp, req)
+		return
+	}
+	mediaid, err := params.Get("mediaId").String()
+	if err != nil {
+		jsonapi.Error(resp, 400, "invalid mediaId")
+		return
+	}
+	var path string
+	row := DB.QueryRow(`SELECT Path FROM Media WHERE MediaId = ?`, mediaid)
+	err = row.Scan(&path)
+	if err != sql.ErrNoRows {
+		jsonapi.Error(resp, 404, "not found")
+		return
+	}
+	if err != nil {
+		InternalError(resp, req, err)
+		return
+	}
+	err = exec.Command("open", "http://google.com").Run()
+	if err != nil {
+		InternalError(resp, req, err)
+		return
+	}
+	jsonapi.Success(resp, nil)
+}
+
 func Start(resp http.ResponseWriter, req *http.Request) {
 	params, err := jsonapi.Read(req)
 	if err == jsonapi.ErrNotJson {
-		jsonapi.Error(resp, 415, "not json")
+		NotJson(resp, req)
 		return
 	}
 	if err != nil {
@@ -66,8 +120,7 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 	var count int
 	err = row.Scan(&count)
 	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
+		InternalError(resp, req, err)
 		return
 	}
 	if count > 0 {
@@ -82,27 +135,23 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 		mediaid, userid)
 	err = row.Scan(&count)
 	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
+		InternalError(resp, req, err)
 		return
 	}
 	tx, err := DB.Begin()
 	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
+		InternalError(resp, req, err)
 		return
 	}
 	if count > 0 {
 		q := `DELETE FROM UserFinishedMedia WHERE MediaId = ? AND UserId = ?`
 		_, err := tx.Exec(q, mediaid, userid)
 		if err != nil {
-			log.Printf("%q: couldn't remove finished: %v", req.URL.Path, err)
+			InternalError(resp, req, "couldn't remove finished:", err)
 			err := tx.Rollback()
 			if err != nil {
-				log.Printf("%q: couldn't rollback transaction: %v",
-					req.URL.Path, err)
+				HTTPLog(req, "couldn't rollback transaction:", err)
 			}
-			jsonapi.Error(resp, 500, "internal error")
 			return
 		}
 	}
@@ -110,20 +159,17 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 	q := `INSERT INTO UserStartedMedia(MediaId, UserId) Values(?, ?)`
 	_, err = tx.Exec(q, mediaid, userid)
 	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
+		InternalError(resp, req, "couldn't remove finished:", err)
 		err := tx.Rollback()
 		if err != nil {
-			log.Printf("%q: couldn't rollback transaction: %v",
-				req.URL.Path, err)
+			HTTPLog(req, "couldn't rollback transaction:", err)
 		}
-		jsonapi.Error(resp, 500, "internal error")
 		return
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
+		InternalError(resp, req, err)
 		return
 	}
 
@@ -133,7 +179,7 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 func Finish(resp http.ResponseWriter, req *http.Request) {
 	params, err := jsonapi.Read(req)
 	if err == jsonapi.ErrNotJson {
-		jsonapi.Error(resp, 415, "not json")
+		NotJson(resp, req)
 		return
 	}
 	if err != nil {
