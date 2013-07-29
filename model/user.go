@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -85,7 +86,7 @@ func FindUserByAccessToken(accessToken string) (*User, error) {
 		FROM Users
 		NATURAL JOIN AccessTokens
 		WHERE AccessToken = ?`
-	row := DB.QueryRow(q, accessToken)
+	row := DB.QueryRow(q, strings.ToLower(accessToken))
 	err := row.Scan(&u.Id, &u.Email, &u.Created)
 	if err != nil {
 		return nil, err
