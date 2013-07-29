@@ -276,41 +276,11 @@ func Finish(resp http.ResponseWriter, req *http.Request) {
 }
 
 func MediaIndex(resp http.ResponseWriter, req *http.Request) {
-	results := make([]interface{}, 0, 20)
-	rows, err := model.DB.Query(`
-		SELECT MediaId, Path, ModTime
-		FROM Media
-		ORDER BY ModTime DESC
-	`)
+	results, err := model.AllMedia()
 	if err != nil {
-		log.Printf("%q: database error: %v", err)
-		jsonapi.Error(resp, 500, "internal error")
+		InternalError(resp, req, err)
 		return
 	}
-	for rows.Next() {
-		var mediaid string
-		var path string
-		var modtime time.Time
-		err = rows.Scan(&mediaid, &path, &modtime)
-		if err != nil {
-			cols, _ := rows.Columns()
-			log.Printf("%q: error scanning row %v: %v",
-				req.URL.Path, cols, err)
-			continue
-		}
-		results = append(results, map[string]interface{}{
-			"mediaId":  mediaid,
-			"path":     path,
-			"modified": modtime,
-		})
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Printf("%q: result iteration error: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
-		return
-	}
-
 	jsonapi.Success(resp, jsonapi.Map{
 		"results": results,
 	})

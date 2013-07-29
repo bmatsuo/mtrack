@@ -8,13 +8,10 @@ package main
 
 import (
 	"crypto/sha1"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/bmatsuo/mtrack/model"
 )
@@ -39,38 +36,11 @@ func ScanMedia() {
 
 func scanMedia(root string) error {
 	mediahandler := func(path string, info os.FileInfo) error {
-		pathnorm := strings.ToLower(path)
-		sha1 := getsha1(pathnorm)
-		var mod time.Time
-		q := `select ModTime from Media where MediaId = ?`
-		row := model.DB.QueryRow(q, sha1)
-		err := row.Scan(&mod)
-		switch err {
-		case sql.ErrNoRows:
-			q := `INSERT INTO Media(MediaId, Path, PathNorm, ModTime)`
-			q += ` VALUES (?, ?, ?, ?)`
-			_, err = model.DB.Exec(q,
-				sha1, path, pathnorm, info.ModTime())
-			if err != nil {
-				log.Printf("%q (%v): DB insert error %T: %v",
-					path, sha1, err, err)
-			}
-		case nil:
-			_mod := info.ModTime()
-			if _mod.After(mod) {
-				q := `UPDATE Media SET ModTime = ? WHERE MediaId = ?`
-				_, err = model.DB.Exec(q, _mod, sha1)
-				if err != nil {
-					log.Printf("%q (%v): DB update error %T: %v",
-						path, sha1, err, err)
-				}
-			}
-		default:
-			log.Printf("%q (%v): DB lookup error %T: %v",
-				path, sha1, err, err)
-			return nil
+		mediaid, err := model.SyncMedia(path, info)
+		if err != nil {
+			log.Printf("%q (%v): %T %v", path, mediaid, err, err)
 		}
-		return (err)
+		return err
 	}
 	return WalkDir(root, []string{".go"}, mediahandler)
 }
