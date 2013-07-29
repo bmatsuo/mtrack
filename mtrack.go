@@ -59,6 +59,7 @@ func main() {
 	}
 
 	Check(model.DBInit())
+
 	go ScanMedia()
 	Check(HTTPStart())
 }

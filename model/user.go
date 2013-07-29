@@ -7,6 +7,8 @@
 package model
 
 import (
+	"crypto/rand"
+	"fmt"
 	"database/sql"
 	"time"
 )
@@ -17,7 +19,81 @@ type User struct {
 	Created time.Time `json:"created"`
 }
 
-func FindOrCreateUserByEmail(email string) (string, error) {
+type accessToken struct {
+	UserId string
+	Token  string
+}
+
+func newAccessTokenForUser(userid string) (*accessToken, error) {
+	at := new(accessToken)
+	at.UserId = userid
+
+	p := make([]byte, 16)
+	_, err := rand.Read(p)
+	if err != nil {
+		return nil, err
+	}
+	at.Token = fmt.Sprintf("%x", p)
+	return at, nil
+}
+
+func CreateAccessTokenForUser(userid string) (string, error) {
+	at, err := newAccessTokenForUser(userid)
+	if err != nil {
+		return "", err
+	}
+
+	q := `INSERT INTO AccessTokens(UserId, AccessToken) Values(?, ?)`
+	_, err = DB.Exec(q, at.UserId, at.Token)
+	if err != nil {
+		return "", err
+	}
+
+	return at.Token, nil
+}
+
+func AllAccessTokensForUser(userid string) ([]string, error) {
+	accessTokens := make([]string, 0, 10)
+	q := `SELECT AccessToken FROM AccessTokens WHERE UserId = ?`
+	rows, err := DB.Query(q, userid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var token string
+		err := rows.Scan(&token)
+		if err != nil {
+			return nil, err
+		}
+		accessTokens = append(accessTokens, token)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return accessTokens, nil
+}
+
+func FindUserByAccessToken(accessToken string) (*User, error) {
+	u := new(User)
+	q := `
+		SELECT UserId, Email, Created
+		FROM Users
+		NATURAL JOIN AccessTokens
+		WHERE AccessToken = ?`
+	row := DB.QueryRow(q, accessToken)
+	err := row.Scan(&u.Id, &u.Email, &u.Created)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+func LocateOrCreateUserByEmail(email string) (string, error) {
 	var id string
 	q := `SELECT UserId FROM Users WHERE Email = ?`
 	row := DB.QueryRow(q, email)

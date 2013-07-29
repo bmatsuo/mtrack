@@ -22,7 +22,29 @@ func DBInit() error {
 	if err != nil {
 		return err
 	}
-	return dbInitMigrations()
+	err = dbInitMigrations()
+	if err != nil {
+		return err
+	}
+
+	userid, err := LocateOrCreateUserByEmail("bryan.matsuo@gmail.com")
+	if err != nil {
+		return err
+	}
+
+	tokens, err := AllAccessTokensForUser(userid)
+	if err != nil {
+		return err
+	}
+
+	if len(tokens) == 0 {
+		_, err := CreateAccessTokenForUser(userid)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func dbInitMigrations() error {
@@ -37,14 +59,21 @@ func dbInitMigrations() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS MediaPathNorm ON Media (PathNorm ASC)`,
 		`CREATE INDEX IF NOT EXISTS MediaModTime ON Media (ModTime DESC)`,
-		`CREATE INDEX IF NOT EXISTS MediaCreated ON Media (Created ASC)`,
+		`CREATE INDEX IF NOT EXISTS MediaCreated ON Media (Created DESC)`,
 		// users
 		`CREATE TABLE IF NOT EXISTS Users(
 			UserId	TEXT PRIMARY KEY,
 			Email   TEXT UNIQUE ON CONFLICT ABORT,
 			Created DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
-		`CREATE INDEX IF NOT EXISTS UsersCreated ON Users (Created ASC)`,
+		`CREATE INDEX IF NOT EXISTS UsersCreated ON Users (Created DESC)`,
+		`CREATE INDEX IF NOT EXISTS UsersEmail ON Users (Email ASC)`,
+		// access tokens
+		`CREATE TABLE IF NOT EXISTS AccessTokens(
+			UserId      TEXT NOT NULL,
+			AccessToken TEXT PRIMARY KEY ON CONFLICT ABORT,
+			FOREIGN KEY (UserId) REFERENCES Users(ID)
+		)`,
 		// a user started consuming media
 		`CREATE TABLE IF NOT EXISTS UserStartedMedia(
 			UserId  TEXT NOT NULL,
