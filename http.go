@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/bmatsuo/mtrack/jsonapi"
@@ -288,38 +287,9 @@ func MediaIndex(resp http.ResponseWriter, req *http.Request) {
 }
 
 func InProgressIndex(resp http.ResponseWriter, req *http.Request) {
-	results := make([]interface{}, 0, 20)
-	rows, err := model.DB.Query(`
-		SELECT S.MediaId, S.UserId, S.Started
-		FROM UserStartedMedia as S
-		ORDER BY Started DESC
-	`)
+	results, err := model.AllInProgress()
 	if err != nil {
-		log.Printf("%q: database error: %v", err)
-		jsonapi.Error(resp, 500, "internal error")
-		return
-	}
-	for rows.Next() {
-		var mediaid string
-		var userid string
-		var started time.Time
-		err = rows.Scan(&mediaid, &userid, &started)
-		if err != nil {
-			cols, _ := rows.Columns()
-			log.Printf("%q: error scanning row %v: %v",
-				req.URL.Path, cols, err)
-			continue
-		}
-		results = append(results, map[string]interface{}{
-			"mediaId": mediaid,
-			"userId":  userid,
-			"started": started,
-		})
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Printf("%q: result iteration error: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
+		InternalError(resp, req, err)
 		return
 	}
 
@@ -329,38 +299,9 @@ func InProgressIndex(resp http.ResponseWriter, req *http.Request) {
 }
 
 func FinishedIndex(resp http.ResponseWriter, req *http.Request) {
-	results := make([]interface{}, 0, 20)
-	rows, err := model.DB.Query(`
-		SELECT MediaId, UserId, Finished
-		FROM UserFinishedMedia
-		ORDER BY Finished DESC
-	`)
+	results, err := model.AllFinished()
 	if err != nil {
-		log.Printf("%q: database error: %v", err)
-		jsonapi.Error(resp, 500, "internal error")
-		return
-	}
-	for rows.Next() {
-		var mediaid string
-		var userid string
-		var finished time.Time
-		err = rows.Scan(&mediaid, &userid, &finished)
-		if err != nil {
-			cols, _ := rows.Columns()
-			log.Printf("%q: error scanning row %v: %v",
-				req.URL.Path, cols, err)
-			continue
-		}
-		results = append(results, map[string]interface{}{
-			"mediaId":  mediaid,
-			"userId":   userid,
-			"finished": finished,
-		})
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Printf("%q: result iteration error: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
+		InternalError(resp, req, err)
 		return
 	}
 

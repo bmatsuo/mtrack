@@ -15,23 +15,67 @@ var ErrAlreadyStarted = errors.New("already started")
 var ErrAlreadyFinished = errors.New("already finished")
 
 type ActionStarted struct {
-	MediaId   string
-	UserId    string
-	StartTime time.Time
+	MediaId   string    `json:"mediaId"`
+	UserId    string    `json:"userId"`
+	StartTime time.Time `json:"started"`
 }
 
 type ActionFinished struct {
-	MediaId    string
-	UserId     string
-	FinishTime time.Time
+	MediaId    string    `json:"mediaId"`
+	UserId     string    `json:"userId"`
+	FinishTime time.Time `json:"finished"`
 }
 
-func AllInProgressMedia(UserId string) ([]*Media, error) {
-	return nil, nil
+func AllInProgress() ([]*ActionStarted, error) {
+	as := make([]*ActionStarted, 0, 20)
+	rows, err := DB.Query(`
+		SELECT S.MediaId, S.UserId, S.Started
+		FROM UserStartedMedia as S
+		NATURAL JOIN Media
+		ORDER BY Started DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		a := new(ActionStarted)
+		err = rows.Scan(&a.MediaId, &a.UserId, &a.StartTime)
+		if err != nil {
+			return nil, err
+		}
+		as = append(as, a)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	return as, nil
 }
 
-func AllFinishedMedia(UserId string) ([]*Media, error) {
-	return nil, nil
+func AllFinished() ([]*ActionFinished, error) {
+	as := make([]*ActionFinished, 0, 20)
+	rows, err := DB.Query(`
+		SELECT S.MediaId, S.UserId, S.Finished
+		FROM UserFinishedMedia as S
+		NATURAL JOIN Media
+		ORDER BY S.Finished DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		a := new(ActionFinished)
+		err = rows.Scan(&a.MediaId, &a.UserId, &a.FinishTime)
+		if err != nil {
+			return nil, err
+		}
+		as = append(as, a)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+	return as, nil
 }
 
 func StartMedia(userid, mediaid string) error {
