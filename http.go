@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/bmatsuo/mtrack/jsonapi"
+	"github.com/bmatsuo/mtrack/model"
 	"github.com/gorilla/mux"
 )
 
@@ -68,7 +69,7 @@ func Open(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var path string
-	row := DB.QueryRow(`SELECT Path FROM Media WHERE MediaId = ?`, mediaid)
+	row := model.DB.QueryRow(`SELECT Path FROM Media WHERE MediaId = ?`, mediaid)
 	err = row.Scan(&path)
 	if err != sql.ErrNoRows {
 		jsonapi.Error(resp, 404, "not found")
@@ -112,7 +113,7 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	row := DB.QueryRow(`
+	row := model.DB.QueryRow(`
 		SELECT COUNT(*)
 		FROM UserStartedMedia
 		WHERE MediaId = ? AND UserId = ?`,
@@ -128,7 +129,7 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	row = DB.QueryRow(`
+	row = model.DB.QueryRow(`
 		SELECT COUNT(*)
 		FROM UserFinishedMedia
 		WHERE MediaId = ? AND UserId = ?`,
@@ -138,7 +139,7 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 		InternalError(resp, req, err)
 		return
 	}
-	tx, err := DB.Begin()
+	tx, err := model.DB.Begin()
 	if err != nil {
 		InternalError(resp, req, err)
 		return
@@ -202,7 +203,7 @@ func Finish(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	row := DB.QueryRow(`
+	row := model.DB.QueryRow(`
 		SELECT COUNT(*)
 		FROM UserFinishedMedia
 		WHERE MediaId = ? AND UserId = ?`,
@@ -219,7 +220,7 @@ func Finish(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	row = DB.QueryRow(`
+	row = model.DB.QueryRow(`
 		SELECT COUNT(*)
 		FROM UserStartedMedia
 		WHERE MediaId = ? AND UserId = ?`,
@@ -230,7 +231,7 @@ func Finish(resp http.ResponseWriter, req *http.Request) {
 		jsonapi.Error(resp, 500, "internal error")
 		return
 	}
-	tx, err := DB.Begin()
+	tx, err := model.DB.Begin()
 	if err != nil {
 		log.Printf("%q: %v", req.URL.Path, err)
 		jsonapi.Error(resp, 500, "internal error")
@@ -276,7 +277,7 @@ func Finish(resp http.ResponseWriter, req *http.Request) {
 
 func MediaIndex(resp http.ResponseWriter, req *http.Request) {
 	results := make([]interface{}, 0, 20)
-	rows, err := DB.Query(`
+	rows, err := model.DB.Query(`
 		SELECT MediaId, Path, ModTime
 		FROM Media
 		ORDER BY ModTime DESC
@@ -317,7 +318,7 @@ func MediaIndex(resp http.ResponseWriter, req *http.Request) {
 
 func InProgressIndex(resp http.ResponseWriter, req *http.Request) {
 	results := make([]interface{}, 0, 20)
-	rows, err := DB.Query(`
+	rows, err := model.DB.Query(`
 		SELECT S.MediaId, S.UserId, S.Started
 		FROM UserStartedMedia as S
 		ORDER BY Started DESC
@@ -358,7 +359,7 @@ func InProgressIndex(resp http.ResponseWriter, req *http.Request) {
 
 func FinishedIndex(resp http.ResponseWriter, req *http.Request) {
 	results := make([]interface{}, 0, 20)
-	rows, err := DB.Query(`
+	rows, err := model.DB.Query(`
 		SELECT MediaId, UserId, Finished
 		FROM UserFinishedMedia
 		ORDER BY Finished DESC

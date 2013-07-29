@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// db.go [created: Sat, 27 Jul 2013]
+// model.go [created: Sat, 27 Jul 2013]
 
-package main
+package model
 
 import (
 	"database/sql"

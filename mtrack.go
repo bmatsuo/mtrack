@@ -11,6 +11,8 @@ import (
 	"log"
 	"path/filepath"
 	"strings"
+
+	"github.com/bmatsuo/mtrack/model"
 )
 
 func Check(err error) {
@@ -31,7 +33,7 @@ func main() {
 	media := flag.String("media", "", "media directories separated by ':'")
 	flag.Parse()
 
-	DBPath = *dbpath
+	model.DBPath = *dbpath
 	HTTPConfig.Addr = *httpaddr
 	mediapaths := strings.Split(*media, ":")
 	for _, path := range mediapaths {
@@ -56,7 +58,7 @@ func main() {
 		MediaRoots = append(MediaRoots, FSRoot{name, path})
 	}
 
-	Check(DBInit())
+	Check(model.DBInit())
 	go ScanMedia()
 	Check(HTTPStart())
 }
