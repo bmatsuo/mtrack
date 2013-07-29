@@ -12,12 +12,33 @@ import (
 	"log"
 	"net/http"
 	"os/exec"
+	"strings"
 	"time"
 
+	"github.com/bitly/go-simplejson"
 	"github.com/bmatsuo/mtrack/jsonapi"
 	"github.com/bmatsuo/mtrack/model"
 	"github.com/gorilla/mux"
 )
+
+var ErrUnauthorized = fmt.Errorf("unauthorized")
+
+func AuthorizeUser(req *http.Request, userid string) (*model.User, error) {
+	auth := req.Header.Get("Authorization")
+	if len(auth) == 0 {
+		return nil, ErrUnauthorized
+	}
+	auth = strings.Trim(auth, " ")
+	pieces := strings.Fields(auth)
+	if len(pieces) != 2 {
+		return nil, fmt.Errorf("invalid authorization")
+	}
+	authType, token := pieces[0], pieces[1]
+	if strings.ToLower(authType) != "token" {
+		return nil, fmt.Errorf("invalid authorization type")
+	}
+	return model.FindUserByAccessToken(token)
+}
 
 func InternalError(resp http.ResponseWriter, req *http.Request, v ...interface{}) {
 	HTTPLog(req, v...)
@@ -25,14 +46,81 @@ func InternalError(resp http.ResponseWriter, req *http.Request, v ...interface{}
 	return
 }
 
+func Unauthorized(resp http.ResponseWriter, req *http.Request) {
+	resp.Header().Set("WWW-Authenticate", "algorithm=token")
+	jsonapi.Error(resp, 401, "unauthorized")
+}
+
+func BadAuthorization(resp http.ResponseWriter, req *http.Request) {
+	resp.Header().Set("WWW-Authenticate", "algorithm=token")
+	jsonapi.Error(resp, 400, "invalid authorization")
+}
+
 func NotJson(resp http.ResponseWriter, req *http.Request) {
 	jsonapi.Error(resp, 415, "Content-Type is not application/json")
+	return
+}
+
+func InvalidJson(resp http.ResponseWriter, req *http.Request, err error) {
+	log.Printf("%q: %v", req.URL.Path, err)
+	jsonapi.Error(resp, 400, "request was not valid json")
+	return
+}
+
+func MissingParameter(resp http.ResponseWriter, req *http.Request, param string) {
+	jsonapi.Error(resp, 400, "missing parameter: ", param)
+	return
+}
+
+func InvalidParameter(resp http.ResponseWriter, req *http.Request, param string) {
+	jsonapi.Error(resp, 400, "invalid parameter: ", param)
 	return
 }
 
 func NotFound(resp http.ResponseWriter, req *http.Request, v ...interface{}) {
 	jsonapi.Error(resp, 404, "not found")
 	return
+}
+
+type MissingParameterError string
+type InvalidParameterError string
+
+func (err MissingParameterError) Error() string {
+	var name = string(err)
+	if name == "" {
+		name = "$root"
+	}
+	return fmt.Sprintf("missing parameter: %v", string(err))
+}
+
+func (err InvalidParameterError) Error() string {
+	var name = string(err)
+	if name == "" {
+		name = "$root"
+	}
+	return fmt.Sprintf("invalid parameter: %v", string(err))
+}
+
+func StringParameter(js *simplejson.Json, path ...string) (string, error) {
+	// simplejson's api makes this kind of misleading in some situations
+	present := false
+	if len(path) > 1 {
+		js = js.GetPath(path[:len(path)-1]...)
+		js, present = js.CheckGet(path[len(path)-1])
+		if !present {
+			return "", MissingParameterError(strings.Join(path, "."))
+		}
+	} else {
+		js, present = js.CheckGet(path[0])
+		if !present {
+			return "", MissingParameterError(strings.Join(path, "."))
+		}
+	}
+	str, err := js.String()
+	if err != nil {
+		return "", InvalidParameterError(strings.Join(path, "."))
+	}
+	return str, nil
 }
 
 func HTTPLog(req *http.Request, v ...interface{}) {
@@ -94,81 +182,41 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 400, "request was not valid json")
+		InvalidJson(resp, req, err)
 		return
 	}
 
-	mediaid, err := params.Get("mediaId").String()
-	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 400, "invalid mediaId")
+	mediaid, err := StringParameter(params, "mediaId")
+	switch err.(type) {
+	case MissingParameterError:
+		MissingParameter(resp, req, "mediaId")
+		return
+	case InvalidParameterError:
+		InvalidParameter(resp, req, "mediaId")
 		return
 	}
 
-	userid, err := params.Get("userId").String()
-	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 400, "invalid userId")
+	userid, err := StringParameter(params, "userId")
+	switch err.(type) {
+	case MissingParameterError:
+		MissingParameter(resp, req, "userId")
+		return
+	case InvalidParameterError:
+		InvalidParameter(resp, req, "userId")
 		return
 	}
 
-	row := model.DB.QueryRow(`
-		SELECT COUNT(*)
-		FROM UserStartedMedia
-		WHERE MediaId = ? AND UserId = ?`,
-		mediaid, userid)
-	var count int
-	err = row.Scan(&count)
-	if err != nil {
-		InternalError(resp, req, err)
+	_, err = AuthorizeUser(req, userid)
+	if err == ErrUnauthorized {
+		Unauthorized(resp, req)
 		return
 	}
-	if count > 0 {
-		jsonapi.Error(resp, 400, "already started")
+	if err != nil {
+		BadAuthorization(resp, req)
 		return
 	}
 
-	row = model.DB.QueryRow(`
-		SELECT COUNT(*)
-		FROM UserFinishedMedia
-		WHERE MediaId = ? AND UserId = ?`,
-		mediaid, userid)
-	err = row.Scan(&count)
-	if err != nil {
-		InternalError(resp, req, err)
-		return
-	}
-	tx, err := model.DB.Begin()
-	if err != nil {
-		InternalError(resp, req, err)
-		return
-	}
-	if count > 0 {
-		q := `DELETE FROM UserFinishedMedia WHERE MediaId = ? AND UserId = ?`
-		_, err := tx.Exec(q, mediaid, userid)
-		if err != nil {
-			InternalError(resp, req, "couldn't remove finished:", err)
-			err := tx.Rollback()
-			if err != nil {
-				HTTPLog(req, "couldn't rollback transaction:", err)
-			}
-			return
-		}
-	}
-
-	q := `INSERT INTO UserStartedMedia(MediaId, UserId) Values(?, ?)`
-	_, err = tx.Exec(q, mediaid, userid)
-	if err != nil {
-		InternalError(resp, req, "couldn't remove finished:", err)
-		err := tx.Rollback()
-		if err != nil {
-			HTTPLog(req, "couldn't rollback transaction:", err)
-		}
-		return
-	}
-
-	err = tx.Commit()
+	err = model.StartMedia(userid, mediaid)
 	if err != nil {
 		InternalError(resp, req, err)
 		return
@@ -189,86 +237,39 @@ func Finish(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	mediaid, err := params.Get("mediaId").String()
-	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 400, "invalid mediaId")
+	mediaid, err := StringParameter(params, "mediaId")
+	switch err.(type) {
+	case MissingParameterError:
+		MissingParameter(resp, req, "mediaId")
+		return
+	case InvalidParameterError:
+		InvalidParameter(resp, req, "mediaId")
 		return
 	}
 
-	userid, err := params.Get("userId").String()
-	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 400, "invalid userId")
+	userid, err := StringParameter(params, "userId")
+	switch err.(type) {
+	case MissingParameterError:
+		MissingParameter(resp, req, "userId")
+		return
+	case InvalidParameterError:
+		InvalidParameter(resp, req, "userId")
 		return
 	}
 
-	row := model.DB.QueryRow(`
-		SELECT COUNT(*)
-		FROM UserFinishedMedia
-		WHERE MediaId = ? AND UserId = ?`,
-		mediaid, userid)
-	var count int
-	err = row.Scan(&count)
-	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
+	_, err = AuthorizeUser(req, userid)
+	if err == ErrUnauthorized {
+		Unauthorized(resp, req)
 		return
 	}
-	if count > 0 {
-		jsonapi.Error(resp, 400, "already finished")
+	if err != nil {
+		BadAuthorization(resp, req)
 		return
 	}
 
-	row = model.DB.QueryRow(`
-		SELECT COUNT(*)
-		FROM UserStartedMedia
-		WHERE MediaId = ? AND UserId = ?`,
-		mediaid, userid)
-	err = row.Scan(&count)
+	err = model.FinishMedia(userid, mediaid)
 	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
-		return
-	}
-	tx, err := model.DB.Begin()
-	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
-		return
-	}
-	if count > 0 {
-		q := `DELETE FROM UserStartedMedia WHERE MediaId = ? AND UserId = ?`
-		_, err := tx.Exec(q, mediaid, userid)
-		if err != nil {
-			log.Printf("%q: couldn't remove started: %v", req.URL.Path, err)
-			err := tx.Rollback()
-			if err != nil {
-				log.Printf("%q: couldn't rollback transaction: %v",
-					req.URL.Path, err)
-			}
-			jsonapi.Error(resp, 500, "internal error")
-			return
-		}
-	}
-
-	q := `INSERT INTO UserFinishedMedia(MediaId, UserId) Values(?, ?)`
-	_, err = tx.Exec(q, mediaid, userid)
-	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		err := tx.Rollback()
-		if err != nil {
-			log.Printf("%q: couldn't rollback transaction: %v",
-				req.URL.Path, err)
-		}
-		jsonapi.Error(resp, 500, "internal error")
-		return
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		log.Printf("%q: %v", req.URL.Path, err)
-		jsonapi.Error(resp, 500, "internal error")
+		InternalError(resp, req, err)
 		return
 	}
 
