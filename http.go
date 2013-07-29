@@ -216,6 +216,10 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	err = model.StartMedia(userid, mediaid)
+	if err == model.ErrAlreadyStarted {
+		jsonapi.Error(resp, 400, err)
+		return
+	}
 	if err != nil {
 		InternalError(resp, req, err)
 		return
@@ -267,6 +271,10 @@ func Finish(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	err = model.FinishMedia(userid, mediaid)
+	if err == model.ErrAlreadyFinished {
+		jsonapi.Error(resp, 400, err)
+		return
+	}
 	if err != nil {
 		InternalError(resp, req, err)
 		return
