@@ -24,25 +24,38 @@ type FSRoot struct {
 }
 
 func ScanMedia() {
+	errch := make(chan error, 0)
+
 	for _, root := range MediaRoots {
-		log.Printf("Scanning %q", root.Name)
-		err := scanMedia(root.Path)
-		if err != nil {
-			log.Printf("%s: %v", root.Name, err)
-		}
+		log.Printf("Scan: %q", root.Name)
+		go scanMedia(root.Path, errch)
 	}
-	log.Print("Scan complete")
+
+	for err := range errch {
+		if err == nil {
+			break
+		}
+		log.Print("Scan: %v", err)
+		errch <- err
+	}
+
+	log.Print("Scan: complete")
 }
 
-func scanMedia(root string) error {
+func scanMedia(root string, errch chan error) {
 	mediahandler := func(path string, info os.FileInfo) error {
 		mediaid, err := model.SyncMedia(path, info)
 		if err != nil {
-			log.Printf("%q (%v): %T %v", path, mediaid, err, err)
+			errch <- fmt.Errorf("%q (%v): %T %v", path, mediaid, err, err)
 		}
-		return err
+		return nil
 	}
-	return WalkDir(root, []string{".go"}, mediahandler)
+	err := WalkDir(root, []string{".go"}, mediahandler)
+	errch <- err
+	if err != nil {
+		// chan still needs "zeroing out"
+		errch <- nil
+	}
 }
 
 func getsha1(path string) string {
