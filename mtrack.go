@@ -28,11 +28,19 @@ func CheckType(err error) {
 }
 
 func main() {
+	Check(Configure())
+	Check(model.DBInit())
+	go ScanMedia()
+	Check(HTTPStart())
+}
+
+func Configure() error {
 	httpaddr := flag.String("http", ":7890", "http server bind address")
 	dbpath := flag.String("db", "./data/mtrack.sqlite", "sqlite3 database path")
 	media := flag.String("media", "", "media directories separated by ':'")
 	flag.Parse()
 
+	// setup global config
 	model.DBPath = *dbpath
 	HTTPConfig.Addr = *httpaddr
 	mediapaths := strings.Split(*media, ":")
@@ -58,8 +66,5 @@ func main() {
 		MediaRoots = append(MediaRoots, FSRoot{name, path})
 	}
 
-	Check(model.DBInit())
-
-	go ScanMedia()
-	Check(HTTPStart())
+	return nil
 }
