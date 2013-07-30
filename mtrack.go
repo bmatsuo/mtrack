@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/bmatsuo/mtrack/model"
+	"github.com/bmatsuo/mtrack/scan"
 )
 
 func Check(err error) {
@@ -30,7 +31,7 @@ func CheckType(err error) {
 func main() {
 	Check(Configure())
 	Check(model.DBInit())
-	go ScanMedia()
+	go scan.ScanMedia()
 	Check(HTTPStart())
 }
 
@@ -63,7 +64,7 @@ func Configure() error {
 			name = filepath.Base(path)
 		}
 
-		MediaRoots = append(MediaRoots, FSRoot{name, path})
+		scan.MediaRoots = append(scan.MediaRoots, scan.FSRoot{name, path})
 	}
 
 	return nil

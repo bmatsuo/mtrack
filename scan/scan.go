@@ -4,7 +4,7 @@
 
 // scan.go [created: Sat, 27 Jul 2013]
 
-package main
+package scan
 
 import (
 	"crypto/sha1"
