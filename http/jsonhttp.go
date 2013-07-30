@@ -4,7 +4,7 @@
 
 // jsonhttp.go [created: Mon, 29 Jul 2013]
 
-package main
+package http
 
 import (
 	"log"
