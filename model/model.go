@@ -7,6 +7,7 @@
 package model
 
 import (
+	"log"
 	"database/sql"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -44,6 +45,9 @@ func DBInit() error {
 		}
 	}
 
+	log.Print("ADMIN")
+	log.Print(UserHasPermission(userid, "ADMIN"))
+
 	return nil
 }
 
@@ -72,7 +76,7 @@ func dbInitMigrations() error {
 		`CREATE TABLE IF NOT EXISTS AccessTokens(
 			UserId      TEXT NOT NULL,
 			AccessToken TEXT PRIMARY KEY ON CONFLICT ABORT,
-			FOREIGN KEY (UserId) REFERENCES Users(Id)
+			FOREIGN KEY (UserId) REFERENCES Users(UserId)
 		)`,
 		// a user started consuming media
 		`CREATE TABLE IF NOT EXISTS UserStartedMedia(
@@ -80,8 +84,8 @@ func dbInitMigrations() error {
 			MediaId TEXT NOT NULL,
 			Started DATETIME DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (UserId, MediaId) ON CONFLICT ABORT,
-			FOREIGN KEY (UserId) REFERENCES Users(Id),
-			FOREIGN KEY (MediaId) REFERENCES Media(Id)
+			FOREIGN KEY (UserId) REFERENCES Users(UserId),
+			FOREIGN KEY (MediaId) REFERENCES Media(MediaId)
 		)`,
 		`CREATE INDEX IF NOT EXISTS UserStartedMediaStarted
 			ON UserStartedMedia (Started DESC)`,
@@ -91,8 +95,8 @@ func dbInitMigrations() error {
 			MediaId TEXT NOT NULL,
 			Finished DATETIME DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (UserId, MediaId) ON CONFLICT ABORT,
-			FOREIGN KEY (UserId) REFERENCES Users(Id),
-			FOREIGN KEY (MediaId) REFERENCES Media(Id)
+			FOREIGN KEY (UserId) REFERENCES Users(UsersId),
+			FOREIGN KEY (MediaId) REFERENCES Media(MediaId)
 		)`,
 		`CREATE INDEX IF NOT EXISTS UserFinishedMediaFinished
 			ON UserFinishedMedia (Finished DESC) `,
@@ -100,6 +104,7 @@ func dbInitMigrations() error {
 		`CREATE TABLE IF NOT EXISTS Permissions(
 			PermissionName TEXT PRIMARY KEY ON CONFLICT IGNORE
 		)`,
+		`INSERT INTO Permissions(PermissionName) Values('ADMIN')`,
 		`INSERT INTO Permissions(PermissionName) Values('USER_LIST')`,
 		`INSERT INTO Permissions(PermissionName) Values('USER_CREATE')`,
 		`INSERT INTO Permissions(PermissionName) Values('USER_READ')`,
@@ -110,7 +115,8 @@ func dbInitMigrations() error {
 		`CREATE TABLE IF NOT EXISTS UserPermissions(
 			UserId TEXT NOT NULL,
 			PermissionName TEXT NOT NULL,
-			FOREIGN KEY (UserId) REFERENCES User(Id),
+			Created DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (UserId) REFERENCES Users(UserId),
 			FOREIGN KEY (PermissionName) REFERENCES Permissions(PermissionName),
 			PRIMARY KEY (UserId, PermissionName) ON CONFLICT IGNORE
 		)`,

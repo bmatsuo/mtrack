@@ -14,6 +14,28 @@ import (
 	"time"
 )
 
+type Permission string
+
+func UserHasPermission(userid string, perm Permission) (bool, error) {
+	fmt.Println(userid, perm)
+	q := `
+		SELECT count(*)
+		FROM UserPermissions AS up
+		JOIN Users AS u ON u.UserId = up.UserId
+		JOIN Permissions AS p ON p.PermissionName = up.PermissionName
+		WHERE up.UserId = ? AND (
+			up.PermissionName = 'ADMIN' OR
+			up.PermissionName = ?
+		)`
+	row := DB.QueryRow(q, userid, string(perm))
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 type User struct {
 	Id      string    `json:"userId"`
 	Email   string    `json:"-"`
