@@ -72,7 +72,7 @@ func dbInitMigrations() error {
 		`CREATE TABLE IF NOT EXISTS AccessTokens(
 			UserId      TEXT NOT NULL,
 			AccessToken TEXT PRIMARY KEY ON CONFLICT ABORT,
-			FOREIGN KEY (UserId) REFERENCES Users(ID)
+			FOREIGN KEY (UserId) REFERENCES Users(Id)
 		)`,
 		// a user started consuming media
 		`CREATE TABLE IF NOT EXISTS UserStartedMedia(
@@ -96,6 +96,24 @@ func dbInitMigrations() error {
 		)`,
 		`CREATE INDEX IF NOT EXISTS UserFinishedMediaFinished
 			ON UserFinishedMedia (Finished DESC) `,
+		// permissions
+		`CREATE TABLE IF NOT EXISTS Permissions(
+			PermissionName TEXT PRIMARY KEY ON CONFLICT IGNORE
+		)`,
+		`INSERT INTO Permissions(PermissionName) Values('USER_LIST')`,
+		`INSERT INTO Permissions(PermissionName) Values('USER_CREATE')`,
+		`INSERT INTO Permissions(PermissionName) Values('USER_READ')`,
+		`INSERT INTO Permissions(PermissionName) Values('USER_UPDATE')`,
+		`INSERT INTO Permissions(PermissionName) Values('USER_DELETE')`,
+		`INSERT INTO Permissions(PermissionName) Values('MEDIA_DELETE')`,
+		`INSERT INTO Permissions(PermissionName) Values('MEDIA_UPDATE')`,
+		`CREATE TABLE IF NOT EXISTS UserPermissions(
+			UserId TEXT NOT NULL,
+			PermissionName TEXT NOT NULL,
+			FOREIGN KEY (UserId) REFERENCES User(Id),
+			FOREIGN KEY (PermissionName) REFERENCES Permissions(PermissionName),
+			PRIMARY KEY (UserId, PermissionName) ON CONFLICT IGNORE
+		)`,
 	)
 }
 
