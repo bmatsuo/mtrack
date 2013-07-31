@@ -12,6 +12,7 @@ import (
 	"log"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/bmatsuo/mtrack/http"
 	"github.com/bmatsuo/mtrack/model"
@@ -22,12 +23,21 @@ func Configure() error {
 	httpaddr := flag.String("http", ":7890", "http server bind address")
 	dbpath := flag.String("db", "./data/mtrack.sqlite", "sqlite3 database path")
 	media := flag.String("media", "", "media directories separated by ':'")
+	scandelay := flag.Uint("scan.delay", 5, "minutes between filesystem scans")
 	flag.Parse()
 
 	// setup global config
 	model.DBPath = *dbpath
 	http.HTTPConfig.Addr = *httpaddr
-	mediapaths := strings.Split(*media, ":")
+	scandelaydur := time.Duration(*scandelay) * time.Minute
+	scanroots := mediaroots(*media)
+	scan.Init(scandelaydur, scanroots)
+	return nil
+}
+
+func mediaroots(env string) []*scan.Root {
+	mediapaths := strings.Split(env, ":")
+	var roots []*scan.Root
 	for _, path := range mediapaths {
 		var name string
 
@@ -47,8 +57,7 @@ func Configure() error {
 			name = filepath.Base(path)
 		}
 
-		scan.MediaRoots = append(scan.MediaRoots, scan.FSRoot{name, path})
+		roots = append(roots, &scan.Root{name, path, []string{".go"}})
 	}
-
-	return nil
+	return roots
 }

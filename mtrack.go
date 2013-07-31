@@ -30,6 +30,7 @@ func CheckType(err error) {
 func main() {
 	Check(config.Configure())
 	Check(model.DBInit())
-	go scan.ScanMedia()
+	scan.Start(nil)
+	defer func() { Check(scan.Close()) }()
 	Check(http.HTTPStart())
 }
