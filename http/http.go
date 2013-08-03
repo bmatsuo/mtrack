@@ -22,7 +22,7 @@ import (
 
 var ErrUnauthorized = fmt.Errorf("unauthorized")
 
-func AuthorizeUser(req *http.Request, userid string) (*model.User, error) {
+func AuthorizeUser(req *http.Request) (*model.User, error) {
 	auth := req.Header.Get("Authorization")
 	if len(auth) == 0 {
 		return nil, ErrUnauthorized
@@ -163,7 +163,7 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = AuthorizeUser(req, userid)
+	user, err := AuthorizeUser(req)
 	if err == ErrUnauthorized {
 		Unauthorized(resp, req)
 		return
@@ -171,6 +171,17 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		BadAuthorization(resp, req)
 		return
+	}
+	if user.Id != userid { // SELF_PROGRESS_UPDATE should be a permission?
+		ok, err := model.UserHasPermission(user.Id, model.PermUserProgressUpdate)
+		if err != nil {
+			InternalError(resp, req, err)
+			return
+		}
+		if !ok {
+			Forbidden(resp, req)
+			return
+		}
 	}
 
 	err = model.StartMedia(userid, mediaid)
@@ -218,7 +229,7 @@ func Finish(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = AuthorizeUser(req, userid)
+	user, err := AuthorizeUser(req)
 	if err == ErrUnauthorized {
 		Unauthorized(resp, req)
 		return
@@ -226,6 +237,17 @@ func Finish(resp http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		BadAuthorization(resp, req)
 		return
+	}
+	if user.Id != userid { // SELF_PROGRESS_UPDATE should be a permission?
+		ok, err := model.UserHasPermission(user.Id, model.PermUserProgressUpdate)
+		if err != nil {
+			InternalError(resp, req, err)
+			return
+		}
+		if !ok {
+			Forbidden(resp, req)
+			return
+		}
 	}
 
 	err = model.FinishMedia(userid, mediaid)

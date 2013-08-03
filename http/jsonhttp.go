@@ -24,6 +24,10 @@ func Unauthorized(resp http.ResponseWriter, req *http.Request) {
 	jsonapi.Error(resp, 401, "unauthorized")
 }
 
+func Forbidden(resp http.ResponseWriter, req *http.Request) {
+	jsonapi.Error(resp, 403, "forbidden")
+}
+
 func BadAuthorization(resp http.ResponseWriter, req *http.Request) {
 	resp.Header().Set("WWW-Authenticate", "algorithm=token")
 	jsonapi.Error(resp, 400, "invalid authorization")
