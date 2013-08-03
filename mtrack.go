@@ -30,6 +30,7 @@ func CheckType(err error) {
 func main() {
 	Check(config.Configure())
 	Check(model.DBInit())
+	Check(model.DBDemoUser())
 	scan.Start(nil)
 	defer func() { Check(scan.Close()) }()
 	Check(http.HTTPStart())

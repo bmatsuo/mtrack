@@ -27,17 +27,7 @@ func (err dbError) Error() string {
 	return fmt.Sprintf("%s: %v", err.op, err.err)
 }
 
-func DBInit() error {
-	var err error
-	DB, err = sql.Open("sqlite3", DBPath)
-	if err != nil {
-		return dbError{"open", err}
-	}
-	err = dbInitMigrations()
-	if err != nil {
-		return dbError{"migrations", err}
-	}
-
+func DBDemoUser() error {
 	userid, err := LocateOrCreateUserByEmail("bryan.matsuo@gmail.com")
 	if err != nil {
 		return dbError{"get user", err}
@@ -58,6 +48,19 @@ func DBInit() error {
 	log.Print("ADMIN")
 	log.Print(UserHasPermission(userid, "ADMIN"))
 
+	return nil
+}
+
+func DBInit() error {
+	var err error
+	DB, err = sql.Open("sqlite3", DBPath)
+	if err != nil {
+		return dbError{"open", err}
+	}
+	err = dbInitMigrations()
+	if err != nil {
+		return dbError{"migrations", err}
+	}
 	return nil
 }
 
