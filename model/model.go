@@ -8,6 +8,8 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
+	"log"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -16,34 +18,49 @@ var DBPath string
 
 var DB *sql.DB
 
-func DBInit() error {
-	var err error
-	DB, err = sql.Open("sqlite3", DBPath)
-	if err != nil {
-		return err
-	}
-	err = dbInitMigrations()
-	if err != nil {
-		return err
-	}
+type dbError struct {
+	op  string
+	err error
+}
 
+func (err dbError) Error() string {
+	return fmt.Sprintf("%s: %v", err.op, err.err)
+}
+
+func DBDemoUser() error {
 	userid, err := LocateOrCreateUserByEmail("bryan.matsuo@gmail.com")
 	if err != nil {
-		return err
+		return dbError{"get user", err}
 	}
 
 	tokens, err := AllAccessTokensForUser(userid)
 	if err != nil {
-		return err
+		return dbError{"get access tokens", err}
 	}
 
 	if len(tokens) == 0 {
 		_, err := CreateAccessTokenForUser(userid)
 		if err != nil {
-			return err
+			return dbError{"create access tokens", err}
 		}
 	}
 
+	log.Print("ADMIN")
+	log.Print(UserHasPermission(userid, "ADMIN"))
+
+	return nil
+}
+
+func DBInit() error {
+	var err error
+	DB, err = sql.Open("sqlite3", DBPath)
+	if err != nil {
+		return dbError{"open", err}
+	}
+	err = dbInitMigrations()
+	if err != nil {
+		return dbError{"migrations", err}
+	}
 	return nil
 }
 
@@ -63,16 +80,21 @@ func dbInitMigrations() error {
 		// users
 		`CREATE TABLE IF NOT EXISTS Users(
 			UserId	TEXT PRIMARY KEY,
-			Email   TEXT UNIQUE ON CONFLICT ABORT,
 			Created DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS UsersCreated ON Users (Created DESC)`,
-		`CREATE INDEX IF NOT EXISTS UsersEmail ON Users (Email ASC)`,
+		// user emails
+		`CREATE TABLE IF NOT EXISTS UserEmails(
+			UserId	TEXT NOT NULL,
+			Email   TEXT PRIMARY KEY ON CONFLICT ABORT,
+			Created DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (UserId) REFERENCES User(UserId)
+		)`,
 		// access tokens
 		`CREATE TABLE IF NOT EXISTS AccessTokens(
 			UserId      TEXT NOT NULL,
 			AccessToken TEXT PRIMARY KEY ON CONFLICT ABORT,
-			FOREIGN KEY (UserId) REFERENCES Users(ID)
+			FOREIGN KEY (UserId) REFERENCES Users(UserId)
 		)`,
 		// a user started consuming media
 		`CREATE TABLE IF NOT EXISTS UserStartedMedia(
@@ -80,8 +102,8 @@ func dbInitMigrations() error {
 			MediaId TEXT NOT NULL,
 			Started DATETIME DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (UserId, MediaId) ON CONFLICT ABORT,
-			FOREIGN KEY (UserId) REFERENCES Users(Id),
-			FOREIGN KEY (MediaId) REFERENCES Media(Id)
+			FOREIGN KEY (UserId) REFERENCES Users(UserId),
+			FOREIGN KEY (MediaId) REFERENCES Media(MediaId)
 		)`,
 		`CREATE INDEX IF NOT EXISTS UserStartedMediaStarted
 			ON UserStartedMedia (Started DESC)`,
@@ -91,11 +113,19 @@ func dbInitMigrations() error {
 			MediaId TEXT NOT NULL,
 			Finished DATETIME DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (UserId, MediaId) ON CONFLICT ABORT,
-			FOREIGN KEY (UserId) REFERENCES Users(Id),
-			FOREIGN KEY (MediaId) REFERENCES Media(Id)
+			FOREIGN KEY (UserId) REFERENCES Users(UsersId),
+			FOREIGN KEY (MediaId) REFERENCES Media(MediaId)
 		)`,
 		`CREATE INDEX IF NOT EXISTS UserFinishedMediaFinished
 			ON UserFinishedMedia (Finished DESC) `,
+		// permissions
+		`CREATE TABLE IF NOT EXISTS UserPermissions(
+			UserId TEXT NOT NULL,
+			PermissionName TEXT NOT NULL,
+			Created DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (UserId) REFERENCES Users(UserId),
+			PRIMARY KEY (UserId, PermissionName) ON CONFLICT IGNORE
+		)`,
 	)
 }
 
