@@ -21,12 +21,6 @@ func Check(err error) {
 	}
 }
 
-func CheckType(err error) {
-	if err != nil {
-		log.Fatalf("Fatal error: %T %v", err, err)
-	}
-}
-
 func main() {
 	Check(config.Configure())
 	Check(model.DBInit())
