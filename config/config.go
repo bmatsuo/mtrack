@@ -21,6 +21,7 @@ import (
 
 func Configure() error {
 	httpaddr := flag.String("http", ":7890", "http server bind address")
+	httpstatic := flag.String("http.static", "http/static", "path to mtrack static files")
 	dbpath := flag.String("db", "./data/mtrack.sqlite", "sqlite3 database path")
 	media := flag.String("media", "", "media directories separated by ':'")
 	scandelay := flag.Uint("scan.delay", 5, "minutes between filesystem scans")
@@ -29,6 +30,7 @@ func Configure() error {
 	// setup global config
 	model.DBPath = *dbpath
 	http.HTTPConfig.Addr = *httpaddr
+	http.HTTPConfig.StaticPath = *httpstatic
 	scandelaydur := time.Duration(*scandelay) * time.Minute
 	scanroots := mediaroots(*media)
 	scan.Init(scandelaydur, scanroots)

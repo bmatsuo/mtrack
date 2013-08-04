@@ -10,8 +10,6 @@ import (
 	"net/http"
 )
 
-var HTTPStaticDir string
-
 func FileServer() http.Handler {
-	return http.FileServer(http.Dir(HTTPStaticDir))
+	return http.FileServer(http.Dir(HTTPConfig.StaticPath))
 }

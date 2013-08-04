@@ -85,19 +85,20 @@ func HTTPLog(req *http.Request, v ...interface{}) {
 }
 
 var HTTPConfig struct {
-	Addr string
+	Addr       string
+	StaticPath string
 }
 
 func HTTPStart() error {
 	router := mux.NewRouter()
-	router.NotFoundHandler = http.HandlerFunc(http.NotFound)
+	router.NotFoundHandler = FileServer()
 	router.Methods("POST").Path("/api/open").HandlerFunc(Open)
 	router.Methods("GET").Path("/api/media").HandlerFunc(MediaIndex)
+	router.Methods("GET").Path("/api/media/progress").HandlerFunc(ProgressIndex)
 	router.Methods("POST").Path("/api/start").HandlerFunc(Start)
 	router.Methods("GET").Path("/api/in_progress").HandlerFunc(InProgressIndex)
 	router.Methods("POST").Path("/api/finish").HandlerFunc(Finish)
 	router.Methods("GET").Path("/api/finished").HandlerFunc(FinishedIndex)
-	router.Methods("GET").Path("/").Handler(FileServer())
 
 	log.Printf("Serving HTTP on at %v", HTTPConfig.Addr)
 	return http.ListenAndServe(HTTPConfig.Addr, router)
@@ -270,6 +271,31 @@ func MediaIndex(resp http.ResponseWriter, req *http.Request) {
 		InternalError(resp, req, err)
 		return
 	}
+	jsonapi.Success(resp, jsonapi.Map{
+		"results": results,
+	})
+}
+
+func ProgressIndex(resp http.ResponseWriter, req *http.Request) {
+	inprogress, err := model.AllInProgress()
+	if err != nil {
+		InternalError(resp, req, err)
+		return
+	}
+	finished, err := model.AllFinished()
+	if err != nil {
+		InternalError(resp, req, err)
+		return
+	}
+
+	results := make([]interface{}, 0, len(inprogress)+len(finished))
+	for i := range inprogress {
+		results = append(results, inprogress[i])
+	}
+	for i := range finished {
+		results = append(results, finished[i])
+	}
+
 	jsonapi.Success(resp, jsonapi.Map{
 		"results": results,
 	})

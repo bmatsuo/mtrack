@@ -54,7 +54,7 @@ func (s *Scanner) Scan() {
 		if err == nil {
 			break
 		}
-		log.Print("Scan: %v", err)
+		log.Printf("Scan: %v", err)
 	}
 
 	log.Print("Scan: complete")
@@ -218,7 +218,7 @@ func ScanMedia() {
 		if err == nil {
 			break
 		}
-		log.Print("Scan: %v", err)
+		log.Printf("Scan: %v", err)
 		errch <- err
 	}
 
@@ -227,7 +227,7 @@ func ScanMedia() {
 
 func scanMedia(errch chan error, root string, exts ...string) {
 	mediahandler := func(path string, info os.FileInfo) error {
-		mediaid, err := model.SyncMedia(path, info)
+		mediaid, err := model.SyncMedia(root, path, info)
 		if err != nil {
 			errch <- fmt.Errorf("%q (%v): %T %v", path, mediaid, err, err)
 		}

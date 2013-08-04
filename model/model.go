@@ -69,12 +69,14 @@ func dbInitMigrations() error {
 		// media
 		`CREATE TABLE IF NOT EXISTS Media(
 			MediaId  TEXT PRIMARY KEY ON CONFLICT ABORT,
+			Root     TEXT NOT NULL,
 			Path     TEXT NOT NULL,
 			PathNorm TEXT NOT NULL,
 			ModTime  DATETIME NOT NULL,
 			Created  DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS MediaPathNorm ON Media (PathNorm ASC)`,
+		`CREATE INDEX IF NOT EXISTS MediaRoot ON Media (Root ASC)`,
 		`CREATE INDEX IF NOT EXISTS MediaModTime ON Media (ModTime DESC)`,
 		`CREATE INDEX IF NOT EXISTS MediaCreated ON Media (Created DESC)`,
 		// users

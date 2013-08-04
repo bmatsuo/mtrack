@@ -18,13 +18,14 @@ import (
 
 type Media struct {
 	Id      string    `json:"mediaId"`
+	Root    string    `json:"root"`
 	Path    string    `json:"path"`
 	ModTime time.Time `json:"modified"`
 }
 
 var ErrNotImplemented = errors.New("not implemented")
 
-func SyncMedia(path string, info os.FileInfo) (string, error) {
+func SyncMedia(root string, path string, info os.FileInfo) (string, error) {
 	pathnorm := strings.ToLower(path)
 	sha1 := getsha1(pathnorm)
 
@@ -34,9 +35,9 @@ func SyncMedia(path string, info os.FileInfo) (string, error) {
 	err := row.Scan(&mod)
 	switch err {
 	case sql.ErrNoRows:
-		q := `INSERT INTO Media(MediaId, Path, PathNorm, ModTime)`
-		q += ` VALUES (?, ?, ?, ?)`
-		_, err = DB.Exec(q, sha1, path, pathnorm, info.ModTime())
+		q := `INSERT INTO Media(MediaId, Root, Path, PathNorm, ModTime)`
+		q += ` VALUES (?, ?, ?, ?, ?)`
+		_, err = DB.Exec(q, sha1, root, path, pathnorm, info.ModTime())
 		if err != nil {
 			return "", err
 		}
@@ -60,9 +61,9 @@ func getsha1(path string) string {
 
 func FindMedia(id string) (*Media, error) {
 	m := new(Media)
-	q := `SELECT MediaId, Path, ModTime FROM Media WHERE MediaId = ?`
+	q := `SELECT MediaId, Root, Path, ModTime FROM Media WHERE MediaId = ?`
 	row := DB.QueryRow(q, id)
-	err := row.Scan(&m.Id, &m.Path, &m.ModTime)
+	err := row.Scan(&m.Id, &m.Root, &m.Path, &m.ModTime)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func FindMedia(id string) (*Media, error) {
 func AllMedia() ([]*Media, error) {
 	ms := make([]*Media, 0, 20)
 	rows, err := DB.Query(`
-		SELECT MediaId, Path, ModTime
+		SELECT MediaId, Root, Path, ModTime
 		FROM Media
 		ORDER BY ModTime DESC
 	`)
@@ -83,7 +84,7 @@ func AllMedia() ([]*Media, error) {
 
 	for rows.Next() {
 		m := new(Media)
-		err = rows.Scan(&m.Id, &m.Path, &m.ModTime)
+		err = rows.Scan(&m.Id, &m.Root, &m.Path, &m.ModTime)
 		if err != nil {
 			return nil, err
 		}
