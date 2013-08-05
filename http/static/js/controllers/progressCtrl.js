@@ -160,6 +160,22 @@ mtrack.controller('ProgressCtrl', ["$scope", "$http", "$q", "personaService", "s
         });
     };
 
+    $scope.clearMedia = function(mediaId) {
+        var sessino = sessionService.session();
+        var accessToken = session.accessToken;
+        var userId = session.userId;
+        var data = { userId: userId, mediaId: mediaId };
+        var header = { Authorization: 'token ' + accessToken};
+        $http.post('/api/clear', data, { headers: header }).
+            success(function(data) {
+                console.log('finish that shit');
+                $scope.getProgress();
+            }).
+        error(function(data, status) {
+            console.log('startMedia:', status.code, data);
+        });
+    };
+
     var session = sessionService.session();
     if (typeof session.accessToken !== 'undefined') {
         $scope.verified = true;

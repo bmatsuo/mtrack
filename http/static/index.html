@@ -32,9 +32,15 @@
                             </div>
                         </div>
                         <div ng-show="verified" class="col-6 col-sm-6 col-lg-6 media-action">
-                            <div class="btn-group">
+							<div class="btn-group">
+								<button ng-click="clearMedia(m.mediaId)" ng-show="!mediaUnwatched(m.mediaId)" type="button" class="btn btn-primary">
+                                    <span class="glyphicon glyphicon-fast-backward"></span>
+								</button>
                                 <button ng-click="startMedia(m.mediaId)" ng-show="mediaUnwatched(m.mediaId)" type="button" class="btn btn-primary">
                                     <span class="glyphicon glyphicon-play"></span>
+                                </button>
+                                <button ng-click="startMedia(m.mediaId)" ng-show="mediaFinished(m.mediaId)" type="button" class="btn btn-primary">
+                                    <span class="glyphicon glyphicon-repeat"></span>
                                 </button>
                                 <button ng-click="finishMedia(m.mediaId)" ng-show="mediaStarted(m.mediaId)" type="button" class="btn btn-primary">
                                     <span class="glyphicon glyphicon-check"></span>

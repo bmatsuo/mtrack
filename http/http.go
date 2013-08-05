@@ -98,6 +98,7 @@ func HTTPStart() error {
 	router.Methods("GET").Path("/api/media").HandlerFunc(MediaIndex)
 	router.Methods("GET").Path("/api/media/progress").HandlerFunc(ProgressIndex)
 	router.Methods("POST").Path("/api/start").HandlerFunc(Start)
+	router.Methods("POST").Path("/api/clear").HandlerFunc(Clear)
 	router.Methods("GET").Path("/api/in_progress").HandlerFunc(InProgressIndex)
 	router.Methods("POST").Path("/api/finish").HandlerFunc(Finish)
 	router.Methods("GET").Path("/api/finished").HandlerFunc(FinishedIndex)
@@ -181,6 +182,71 @@ func Open(resp http.ResponseWriter, req *http.Request) {
 		InternalError(resp, req, err)
 		return
 	}
+	jsonapi.Success(resp, nil)
+}
+
+func Clear(resp http.ResponseWriter, req *http.Request) {
+	params, err := jsonapi.Read(req)
+	if err == jsonapi.ErrNotJson {
+		NotJson(resp, req)
+		return
+	}
+	if err != nil {
+		InvalidJson(resp, req, err)
+		return
+	}
+
+	mediaid, err := StringParameter(params, "mediaId")
+	switch err.(type) {
+	case MissingParameterError:
+		MissingParameter(resp, req, "mediaId")
+		return
+	case InvalidParameterError:
+		InvalidParameter(resp, req, "mediaId")
+		return
+	}
+
+	userid, err := StringParameter(params, "userId")
+	switch err.(type) {
+	case MissingParameterError:
+		MissingParameter(resp, req, "userId")
+		return
+	case InvalidParameterError:
+		InvalidParameter(resp, req, "userId")
+		return
+	}
+
+	user, err := AuthorizeUser(req)
+	if err == ErrUnauthorized {
+		Unauthorized(resp, req)
+		return
+	}
+	if err != nil {
+		BadAuthorization(resp, req)
+		return
+	}
+	if user.Id != userid { // SELF_PROGRESS_UPDATE should be a permission?
+		ok, err := model.UserHasPermission(user.Id, model.PermUserProgressUpdate)
+		if err != nil {
+			InternalError(resp, req, err)
+			return
+		}
+		if !ok {
+			Forbidden(resp, req)
+			return
+		}
+	}
+
+	err = model.ClearProgress(userid, mediaid)
+	if err == model.ErrAlreadyStarted {
+		jsonapi.Error(resp, 400, err)
+		return
+	}
+	if err != nil {
+		InternalError(resp, req, err)
+		return
+	}
+
 	jsonapi.Success(resp, nil)
 }
 

@@ -7,6 +7,7 @@
 package model
 
 import (
+	"database/sql"
 	"errors"
 	"time"
 )
@@ -76,6 +77,22 @@ func AllFinished() ([]*ActionFinished, error) {
 		return nil, err
 	}
 	return as, nil
+}
+
+func ClearProgress(userid, mediaid string) error {
+	q := `DELETE FROM UserStartedMedia WHERE MediaId = ? AND UserId = ?`
+	_, err := DB.Exec(q, mediaid, userid)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	q = `DELETE FROM UserFinishedMedia WHERE MediaId = ? AND UserId = ?`
+	_, err = DB.Exec(q, mediaid, userid)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	return nil
 }
 
 func StartMedia(userid, mediaid string) error {
