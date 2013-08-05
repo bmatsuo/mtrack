@@ -150,6 +150,7 @@ func VerifyPersona(resp http.ResponseWriter, req *http.Request) {
 	jsonapi.Success(resp, jsonapi.Map{
 		"accessToken": accessToken,
 		"email": presp.Email,
+		"userId": userid,
 	})
 }
 

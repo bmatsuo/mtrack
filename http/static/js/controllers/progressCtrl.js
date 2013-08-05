@@ -1,5 +1,6 @@
-mtrack.controller('ProgressCtrl', ["$scope", "$http", "personaService", "sessionService",function ProgressCtrl($scope, $http, personaService, sessionService) {
+mtrack.controller('ProgressCtrl', ["$scope", "$http", "$q", "personaService", "sessionService",function ProgressCtrl($scope, $http, $q, personaService, sessionService) {
     $scope.verified = false;
+    $scope.userId = undefined;
     $scope.media = {};
     $scope.usersInProgress = {};
     $scope.usersFinished = {};
@@ -19,6 +20,7 @@ mtrack.controller('ProgressCtrl', ["$scope", "$http", "personaService", "session
             then(function(result) {
                 console.log('verified', result);
                 $scope.verified = true;
+                $scope.userId = result.userId;
             }, function(result) {
                 console.log('verification failure', result);
             });
@@ -29,6 +31,7 @@ mtrack.controller('ProgressCtrl', ["$scope", "$http", "personaService", "session
             then(function(result) {
                 console.log('logged out', result);
                 $scope.verified = false;
+                $scope.userId = undefined;
             });
     };
 
@@ -98,9 +101,66 @@ mtrack.controller('ProgressCtrl', ["$scope", "$http", "personaService", "session
         });
     };
 
+    $scope.mediaUnwatched = function(mediaId) {
+        return !$scope.mediaStarted(mediaId) && !$scope.mediaFinished(mediaId);
+    };
+
+    $scope.mediaStarted = function(mediaId) {
+        var users = $scope.usersInProgress[mediaId] || [];
+        for (i in users) {
+            if (users[i].userId == $scope.userId) {
+                console.log('finished', mediaId);
+                return true;
+            }
+        }
+        console.log('unfinished', mediaId);
+        return false;
+    };
+
+    $scope.mediaFinished = function(mediaId) {
+        var users = $scope.usersFinished[mediaId] || [];
+        for (i in users) {
+            if (users[i].userId == $scope.userId) {
+                console.log('finished', mediaId);
+                return true;
+            }
+        }
+        console.log('unfinished', mediaId);
+        return false;
+    };
+
+    $scope.startMedia = function(mediaId) {
+        sessionService.session().then(function(session) {
+            var accessToken = session.accessToken;
+            var userId = session.userId;
+            $http.post('/api/start', { userId: userId, mediaId: mediaId }).
+                success(function(data) {
+                    $scope.getProgress();
+                }).
+                error(function(data, status) {
+                    console.log('startMedia:', status.code, data);
+                });
+        });
+    };
+
+    $scope.finishMedia = function() {
+        sessionService.session().then(function(session) {
+            var accessToken = session.accessToken;
+            var userId = session.userId;
+            $http.post('/api/finish', { userId: userId, mediaId: mediaId }).
+                success(function(data) {
+                    $scope.getProgress();
+                }).
+                error(function(data, status) {
+                    console.log('startMedia:', status.code, data);
+                });
+        });
+    };
+
     sessionService.session().then(function(data) {
         console.log('loaded session', data);
         $scope.verified = true;
+        $scope.userId = data.userId;
     });
     $scope.getMedia();
     $scope.getProgress();
