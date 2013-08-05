@@ -1,4 +1,5 @@
-mtrack.controller('ProgressCtrl', function ProgressCtrl($scope, $http) {
+mtrack.controller('ProgressCtrl', ["$scope", "$http", "personaService", "sessionService",function ProgressCtrl($scope, $http, personaService, sessionService) {
+    $scope.verified = false;
     $scope.media = {};
     $scope.usersInProgress = {};
     $scope.usersFinished = {};
@@ -11,6 +12,24 @@ mtrack.controller('ProgressCtrl', function ProgressCtrl($scope, $http) {
 
     var logApiError = function(data, status) {
         console.log("HTTP status", status.code, data.reason);
+    };
+
+    $scope.verify = function() {
+        personaService.verify().
+            then(function(result) {
+                console.log('verified', result);
+                $scope.verified = true;
+            }, function(result) {
+                console.log('verification failure', result);
+            });
+    };
+
+    $scope.logout = function() {
+        personaService.logout().
+            then(function(result) {
+                console.log('logged out', result);
+                $scope.verified = false;
+            });
     };
 
     $scope.getProgress = function() {
@@ -79,6 +98,10 @@ mtrack.controller('ProgressCtrl', function ProgressCtrl($scope, $http) {
         });
     };
 
+    sessionService.session().then(function(data) {
+        console.log('loaded session', data);
+        $scope.verified = true;
+    });
     $scope.getMedia();
     $scope.getProgress();
-})
+}]);

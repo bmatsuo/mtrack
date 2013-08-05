@@ -18,6 +18,7 @@ import (
 	"github.com/bmatsuo/mtrack/jsonapi"
 	"github.com/bmatsuo/mtrack/model"
 	"github.com/gorilla/mux"
+	"github.com/sauerbraten/persona"
 )
 
 var ErrUnauthorized = fmt.Errorf("unauthorized")
@@ -92,6 +93,7 @@ var HTTPConfig struct {
 func HTTPStart() error {
 	router := mux.NewRouter()
 	router.NotFoundHandler = FileServer()
+	router.Methods("POST").Path("/api/persona/verify").HandlerFunc(VerifyPersona)
 	router.Methods("POST").Path("/api/open").HandlerFunc(Open)
 	router.Methods("GET").Path("/api/media").HandlerFunc(MediaIndex)
 	router.Methods("GET").Path("/api/media/progress").HandlerFunc(ProgressIndex)
@@ -102,6 +104,53 @@ func HTTPStart() error {
 
 	log.Printf("Serving HTTP on at %v", HTTPConfig.Addr)
 	return http.ListenAndServe(HTTPConfig.Addr, router)
+}
+
+var PersonaAudience = "http://localhost:7890"
+
+func VerifyPersona(resp http.ResponseWriter, req *http.Request) {
+	// TODO some kind of csrf protection
+
+	params, err := jsonapi.Read(req)
+	if err == jsonapi.ErrNotJson {
+		NotJson(resp, req)
+		return
+	}
+	assertion, err := params.Get("assertion").String()
+	if err != nil {
+		jsonapi.Error(resp, 400, "invalid assertion")
+		return
+	}
+
+	presp, err := persona.VerifyAssertion(PersonaAudience, assertion)
+	if err != nil {
+		InternalError(resp, req, err)
+		return
+	}
+	if !presp.OK() {
+		// maybe this should be a different error. but i may need the logs.
+		InternalError(resp, req, presp.Reason)
+		return
+	}
+
+	// return an access token
+	userid, err := model.LocateOrCreateUserByEmail(presp.Email)
+	if err != nil {
+		InternalError(resp, req, presp.Reason)
+		return
+	}
+
+	// XXX i'm not doing anything to limit the creation of access tokens!
+	accessToken, err := model.CreateAccessTokenForUser(userid)
+	if err != nil {
+		InternalError(resp, req, presp.Reason)
+		return
+	}
+
+	jsonapi.Success(resp, jsonapi.Map{
+		"accessToken": accessToken,
+		"email": presp.Email,
+	})
 }
 
 func Open(resp http.ResponseWriter, req *http.Request) {

@@ -14,7 +14,9 @@
 			<div id="header" class="container">
 				<h2>recently updated</h2>
             </div>
-			<div id="main" class="container" ng-cloak>
+            <div id="main" class="container" ng-cloak>
+                <a id="signin" ng-click="verify()" ng-hide="verified" href="#" ><img alt="sign in" src="https://developer.mozilla.org/files/3971/plain_sign_in_red.png" ></a>
+		        <a id="signout" ng-click="logout()" ng-show="verified" href="#">sign out</a>
                 <div ng-repeat="root in mediaRoots">
                     <div class="row media-root">
                         <div class="col-12 col-sm-12 col-lg-12"><h3>{{root}}/</h3></div>
@@ -29,7 +31,7 @@
                                 <span class="glyphicon glyphicon-user finished" data-userid="{{u.userId}}" ng-repeat="u in usersFinished[m.mediaId]"></span>
                             </div>
                         </div>
-                        <div class="col-6 col-sm-6 col-lg-6 media-action">
+                        <div ng-show="verified" class="col-6 col-sm-6 col-lg-6 media-action">
                             <div class="btn-group">
                                 <button type="button" class="btn btn-primary">
                                     <span class="glyphicon glyphicon-play"></span>
@@ -46,8 +48,10 @@
             </div>
         </div>
 
+        <script type="text/javascript" src="https://login.persona.org/include.js"></script>
         <script type="text/javascript" src="js/angular.js"></script>
         <script type="text/javascript" src="js/app.js"></script>
+        <script type="text/javascript" src="js/persona.js"></script>
         <script type="text/javascript" src="js/controllers/progressCtrl.js"></script>
     </body>
 </html>
