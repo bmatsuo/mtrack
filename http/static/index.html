@@ -27,16 +27,16 @@
                                 <strong>{{m.basename}}</strong>
                             </div>
                             <div class="media-progress">
-                                <span class="glyphicon glyphicon-user in-progress" data-userid="{{u.userId}}" ng-repeat="u in usersInProgress[m.mediaId]"></span>
-                                <span class="glyphicon glyphicon-user finished" data-userid="{{u.userId}}" ng-repeat="u in usersFinished[m.mediaId]"></span>
+                                <span class="glyphicon glyphicon-eye-open in-progress" data-userid="{{u.userId}}" ng-repeat="u in usersInProgress[m.mediaId]"></span>
+                                <span class="glyphicon glyphicon-flag finished" data-userid="{{u.userId}}" ng-repeat="u in usersFinished[m.mediaId]"></span>
                             </div>
                         </div>
                         <div ng-show="verified" class="col-6 col-sm-6 col-lg-6 media-action">
                             <div class="btn-group">
-                                <button ng-show="mediaUnwatched(m.mediaId)" type="button" class="btn btn-primary">
+                                <button ng-click="startMedia(m.mediaId)" ng-show="mediaUnwatched(m.mediaId)" type="button" class="btn btn-primary">
                                     <span class="glyphicon glyphicon-play"></span>
                                 </button>
-                                <button ng-show="mediaStarted(m.mediaId)" type="button" class="btn btn-primary">
+                                <button ng-click="finishMedia(m.mediaId)" ng-show="mediaStarted(m.mediaId)" type="button" class="btn btn-primary">
                                     <span class="glyphicon glyphicon-check"></span>
                                 </button>
                                 <button type="button" class="btn btn-primary">

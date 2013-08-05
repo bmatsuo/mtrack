@@ -4,58 +4,37 @@ persona.factory('sessionService', ["$http", "$q", function($http, $q) {
     var _sessionKey = 'mtrack.session';
     var _cached;
     var _session = function() {
-        var deferred = $q.defer();
+		if (typeof _cached !== 'undefined') {
+			// TODO check expiration time.
+			return Object.create(_cached);
+		}
 
-        setTimeout(function() {
-            if (typeof _cached !== 'undefined') {
-                // TODO check expiration time.
-                deferred.resolve(Object.create(_cached));
-                return;
-            }
+		var cached = localStorage[_sessionKey];
+		if (typeof cached !== 'undefined') { 
+			_cached = JSON.parse(cached);
+			return Object.create(_cached);
+		}
 
-            var cached = localStorage[_sessionKey];
-            if (typeof cached !== 'undefined') { 
-                _cached = JSON.parse(cached);
-                deferred.resolve(Object.create(_cached));
-                return;
-            }
-
-            deferred.reject({ status: 'unauthenticated' });
-        }, 0);
-
-        return deferred.promise;
+		return { status: 'unauthenticated' };
     };
     var _store = function(session) {
-        var deferred = $q.defer();
-
-        setTimeout(function() {
-            if (typeof session === 'object') {
-                _cached = session;
-                localStorage[_sessionKey] = JSON.stringify(session);
-                deferred.resolve('success');
-                console.log('local storage success');
-            } else {
-                console.log('local storage failure');
-                deferred.reject('argument is not an object');
-            }
-        }, 0);
-
-        return deferred.promise;
+		if (typeof session === 'object') {
+			_cached = session;
+			localStorage[_sessionKey] = JSON.stringify(session);
+			console.log('local storage success');
+			return true;
+		} else {
+			console.log('local storage failure');
+			return false;
+		}
     };
     var _delete = function() {
-        var deferred = $q.defer();
-
-        setTimeout(function() {
-            if (typeof _cached !== 'undefined') {
-                _cached = undefined;
-                delete localStorage[_sessionKey];
-                deferred.resolve('logged out');
-                return;
-            }
-            deferred.reject('already logged out');
-        }, 0);
-
-        return deferred.promise;
+		if (typeof _cached !== 'undefined') {
+			_cached = undefined;
+			delete localStorage[_sessionKey];
+			return true;
+		}
+		return false;
     };
     return {
         session: _session,
@@ -72,13 +51,7 @@ persona.factory("personaService", ["$http", "$q", "sessionService", function($ht
                         $http.post(config.persona.verifyUrl, { assertion: assertion }).
                             success(function(data) {
                                 console.log('verify success:', data);
-                                sessionService.store(data).then(
-                                    function(result) {
-                                        console.log('storage success:', result);
-                                    },
-                                    function(reason) {
-                                        console.log('storage failure:', reason);
-                                    });
+                                sessionService.store(data);
                                 deferred.resolve(data);
                             }).
                             error(function(data) {
@@ -89,21 +62,20 @@ persona.factory("personaService", ["$http", "$q", "sessionService", function($ht
                     return deferred.promise;
                 },
         logout: function () {
+                    var deferred = $q.defer();
                     if (config.persona.logoutUrl) {
-                        var deferred = $q.defer();
 
                         $http.post(config.persona.logoutUrl).
                             success(function(data) {
-                                sessionService.endSession().then(
-                                    function(message) { deferred.resolve(message); },
-                                    function(message) { deferred.reject(message); });
+                                sessionService.endSession();
+								deferred.resolve(true);
                             }).
-                            error(function(data) { deferred.reject(data); });
-
-                        return deferred.promise;
+                            error(function(data) { deferred.resolve(true); });
                     } else {
-                        return sessionService.endSession();
+                        sessionService.endSession();
+						deferred.resolve(true);
                     }
+                    return deferred.promise;
                 }
     };
 }]);
