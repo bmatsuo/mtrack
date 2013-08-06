@@ -21,6 +21,7 @@ import (
 
 func Configure() error {
 	httpaddr := flag.String("http", ":7890", "http server bind address")
+	// the default here is a developement nicety. not good for production.
 	httpstatic := flag.String("http.static", "http/static", "path to mtrack static files")
 	dbpath := flag.String("db", "./data/mtrack.sqlite", "sqlite3 database path")
 	media := flag.String("media", "", "media directories separated by ':'")

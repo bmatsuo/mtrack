@@ -24,6 +24,23 @@ STATIC_ROOT=${BUILD_ROOT}/${STATIC_ROOT_REL}
 STATIC_ROOT_DIST=${DIST}/static
 STATIC_SOURCE_FILES=$(shell find ${STATIC_ROOT} | egrep '\.(html|css|js)$$')
 
+help:
+	@echo "build        compile both the server (including static assets). build client programs" 1>&2
+	@echo "clean        remove the dist directory" 1>&2
+	@echo "dist         create an archive file for distribution" 1>&2
+	@echo "client       compile just the client program" 1>&2
+	@echo "server       compile just the server program" 1>&2
+	@echo "start        start a server that laods static files from the development directory" 1>&2
+	@echo "start-dist   start a server that uses a fixed set of static files." 1>&2
+
+.PHONY : help
+
+start: server
+	${MTRACK_VERSION_BIN} -media=.
+
+start-dist: server
+	${MTRACK_VERSION_BIN} -media=. -http.static='${STATIC_ROOT_DIST}'
+
 build: ${DIST} server client
 
 clean:
@@ -39,7 +56,6 @@ client: ${MTRACK_CLIENT_BIN}
 
 ${DIST_FILE}: build
 	tar cvzf $@ ${DIST}
-
 
 # NOTE
 # the symbolic links made for ${MTRACK_BIN} and ${MTRACK_CLIENT_BIN}
