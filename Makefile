@@ -38,7 +38,7 @@ help:
 
 .PHONY : help
 
-start: server
+start: ${MTRACK_VERSION_BIN}
 	${MTRACK_VERSION_BIN} -media=./data/media
 
 start-dist: server
