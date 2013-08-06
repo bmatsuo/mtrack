@@ -18,20 +18,22 @@
                 <a id="signin" ng-click="verify()" ng-hide="verified" href="#" ><img alt="sign in" src="https://developer.mozilla.org/files/3971/plain_sign_in_red.png" ></a>
 		        <a id="signout" ng-click="logout()" ng-show="verified" href="#">sign out</a>
                 <div ng-repeat="root in mediaRoots">
-                    <div class="row media-root">
-                        <div class="col-12 col-sm-12 col-lg-12"><h3>{{root}}/</h3></div>
+                    <div class="media-root">
+                        <div><h3>{{root}}/</h3></div>
                     </div>
-                    <div ng-repeat="m in mediaByRoot[root]" class="row media rooted">
-                        <div class="col-6 col-sm-6 col-lg-6">
-                            <div>
-                                <strong>{{m.basename}}</strong>
-                            </div>
+                    <div ng-repeat="m in mediaByRoot[root]" class="media rooted">
+                        <div class="col-4 col-sm-4 col-lg-5">
+                            <strong>{{m.basename}}</strong>
                             <div class="media-progress">
                                 <span class="glyphicon glyphicon-eye-open in-progress" data-userid="{{u.userId}}" ng-repeat="u in usersInProgress[m.mediaId]"></span>
                                 <span class="glyphicon glyphicon-flag finished" data-userid="{{u.userId}}" ng-repeat="u in usersFinished[m.mediaId]"></span>
                             </div>
                         </div>
-                        <div ng-show="verified" class="col-6 col-sm-6 col-lg-6 media-action">
+                        <div ng-show="verified" class="col-6 col-sm-6 col-lg-7 media-action">
+                            <div class="col-5 hidden-sm col-lg-3"
+                                 style="padding-top:0.3em;"><!-- shitty style hack -->
+                                {{m.modified | moment:'ago'}}
+                            </div>
                             <div class="btn-toolbar">
                                 <div class="btn-group">
                                     <button class="btn btn-link"
@@ -50,7 +52,7 @@
                                         <span class="glyphicon glyphicon-fast-forward"></span>
                                     </button>
                                 </div>
-                                <div class="btn-group">
+                                <div class="btn-group hidden-sm">
                                     <button class="btn">???</button>
                                 </div>
                             </div>
@@ -63,9 +65,11 @@
         </div>
 
         <script type="text/javascript" src="https://login.persona.org/include.js"></script>
+        <script type="text/javascript" src="js/moment.js"></script>
         <script type="text/javascript" src="js/angular.js"></script>
         <script type="text/javascript" src="js/app.js"></script>
         <script type="text/javascript" src="js/persona.js"></script>
+        <script type="text/javascript" src="js/moment-filter.js"></script>
         <script type="text/javascript" src="js/controllers/progressCtrl.js"></script>
     </body>
 </html>
