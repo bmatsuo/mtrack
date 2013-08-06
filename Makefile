@@ -87,6 +87,5 @@ ${DIST}:
 	mkdir -p $@
 
 ${STATIC_ROOT_VERSION_DIST}: ${STATIC_SOURCE_FILES}
-	echo ${STATIC_SOURCE_FILES}
 	mkdir -p $@
 	rsync -auv ${STATIC_ROOT}/ $@
