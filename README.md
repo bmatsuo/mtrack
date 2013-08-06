@@ -1,9 +1,13 @@
 [godoc.org]: http://godoc.org/github.com/bmatsuo/mtrack/ "godoc.org"
 
-Install
-=======
+Run the server
+==============
 
-    go get github.com/bmatsuo/mtrack
+    git clone git@github.com:bmatsuo/mtrack.git $GOPATH/github.com/bmatsuo/mtrack
+    cd $GOPATH/github.com/bmatsuo/mtrack
+    make start-dist
+
+then open [the web app](http://localhost:7890)
 
 Docs
 ====
