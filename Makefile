@@ -41,7 +41,7 @@ help:
 start: ${MTRACK_VERSION_BIN}
 	${MTRACK_VERSION_BIN} -media=./data/media
 
-start-dist: server
+start-dist: ${MTRACK_VERSION_BIN} ${STATIC_ROOT_VERSION_DIST}
 	${MTRACK_VERSION_BIN} -media=./data/media -http.static='${STATIC_ROOT_VERSION_DIST}'
 
 build: ${DIST} server client
