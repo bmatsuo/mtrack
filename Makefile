@@ -4,7 +4,7 @@ GIT_COMMIT=$(shell cd ${BUILD_ROOT} && git rev-list -n 1 --abbrev-commit HEAD)
 
 # distribution variables
 DIST=${BUILD_ROOT}/dist
-DIST_FILE=dist-${GIT_COMMIT}.tar.gz
+DIST_FILE=${BUILD_ROOT}/dist-${GIT_COMMIT}.tar.gz
 
 # server binary
 MTRACK_SRC_FILES=$(shell find ${BUILD_ROOT} -name '*.go' | egrep -v '^${BUILD_ROOT}/tools')
@@ -22,6 +22,7 @@ MTRACK_CLIENT_VERSION_BIN=${MTRACK_CLIENT_BIN}-${GIT_COMMIT}
 STATIC_ROOT_REL=http/static
 STATIC_ROOT=${BUILD_ROOT}/${STATIC_ROOT_REL}
 STATIC_ROOT_DIST=${DIST}/static
+STATIC_ROOT_VERSION_DIST=${STATIC_ROOT_DIST}-${GIT_COMMIT}
 STATIC_SOURCE_FILES=$(shell find ${STATIC_ROOT} | egrep '\.(html|css|js)$$')
 
 help:
@@ -38,15 +39,15 @@ help:
 .PHONY : help
 
 start: server
-	${MTRACK_VERSION_BIN} -media=.
+	${MTRACK_VERSION_BIN} -media=./data/media
 
 start-dist: server
-	${MTRACK_VERSION_BIN} -media=. -http.static='${STATIC_ROOT_DIST}'
+	${MTRACK_VERSION_BIN} -media=./data/media -http.static='${STATIC_ROOT_VERSION_DIST}'
 
 build: ${DIST} server client
 
 clean:
-	rm -r ${DIST}
+	[ -d ${DIST} ] && rm -r ${DIST} || echo -n
 
 .PHONY : clean
 
@@ -56,13 +57,13 @@ server: ${MTRACK_BIN} ${STATIC_ROOT_DIST}
 
 client: ${MTRACK_CLIENT_BIN}
 
-${DIST_FILE}: build
-	tar cvzf $@ ${DIST}
+${DIST_FILE}: ${DIST} ${MTRACK_VERSION_BIN} ${STATIC_ROOT_VERSION_DIST}
+	cd $(shell dirname ${DIST}) && tar cvzf $@ $(shell basename ${DIST})
 
 # NOTE
-# the symbolic links made for ${MTRACK_BIN} and ${MTRACK_CLIENT_BIN}
-# may not be of much use in a production scenario. they are provided
-# for more rapid development.
+# the symbolic links made for ${MTRACK_BIN}, ${STATIC_ROOT_VERSION_DIST},
+# and ${MTRACK_CLIENT_BIN} may not be of much use in a production scenario.
+# they are provided for more rapid development.
 
 ${MTRACK_BIN}: ${MTRACK_VERSION_BIN}
 	rm -f $@
@@ -71,6 +72,10 @@ ${MTRACK_BIN}: ${MTRACK_VERSION_BIN}
 ${MTRACK_CLIENT_BIN}: ${MTRACK_CLIENT_VERSION_BIN}
 	rm -f $@
 	ln -s ${MTRACK_CLIENT_VERSION_BIN} $@
+
+${STATIC_ROOT_DIST}: ${STATIC_ROOT_VERSION_DIST}
+	rm -f $@
+	ln -s ${STATIC_ROOT_VERSION_DIST} $@
 
 ${MTRACK_VERSION_BIN}: ${MTRACK_SRC_FILES}
 	cd ${BUILD_ROOT} && go build -o $@
@@ -81,7 +86,7 @@ ${MTRACK_CLIENT_VERSION_BIN}: ${MTRACK_CLIENT_SRC_FILES}
 ${DIST}:
 	mkdir -p $@
 
-${STATIC_ROOT_DIST}: ${STATIC_SOURCE_FILES}
+${STATIC_ROOT_VERSION_DIST}: ${STATIC_SOURCE_FILES}
 	echo ${STATIC_SOURCE_FILES}
 	mkdir -p $@
 	rsync -auv ${STATIC_ROOT}/ $@
