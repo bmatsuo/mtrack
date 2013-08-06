@@ -3,6 +3,10 @@
 build.out
 _cgo_export.h
 _testmain.go
+*.avi
+*.mp4
+*.m4v
+*.mkv
 _test
 _obj
 /mtrack
