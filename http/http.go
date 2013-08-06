@@ -150,8 +150,8 @@ func VerifyPersona(resp http.ResponseWriter, req *http.Request) {
 
 	jsonapi.Success(resp, jsonapi.Map{
 		"accessToken": accessToken,
-		"email": presp.Email,
-		"userId": userid,
+		"email":       presp.Email,
+		"userId":      userid,
 	})
 }
 
@@ -300,6 +300,22 @@ func Start(resp http.ResponseWriter, req *http.Request) {
 			Forbidden(resp, req)
 			return
 		}
+	}
+
+	media, err := model.FindMedia(mediaid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			NotFound(resp, req)
+		} else {
+			InternalError(resp, req, err)
+		}
+		return
+	}
+
+	err = exec.Command("open", media.Path).Run()
+	if err != nil {
+		InternalError(resp, req, err)
+		return
 	}
 
 	err = model.StartMedia(userid, mediaid)
