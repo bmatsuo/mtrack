@@ -59,7 +59,11 @@ func mediaroots(env string) []*scan.Root {
 			name = filepath.Base(path)
 		}
 
-		roots = append(roots, &scan.Root{name, path, []string{".go"}})
+		roots = append(roots, &scan.Root{
+			Name: name,
+			Path: path,
+			Exts: []string{".go", ".mp4", ".m4v", ".avi", ".mkv"},
+		})
 	}
 	return roots
 }
