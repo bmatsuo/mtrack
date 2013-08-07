@@ -55,10 +55,14 @@ func New(up, down Executor) Interface {
 	return &simpleMigration{up, down}
 }
 
-// a raw sql query that can be used for up or down.
-type MigrationString string
+func NewStrings(up, down string) Interface {
+	return &simpleMigration{String(up), String(down)}
+}
 
-func (m MigrationString) Exec(db *sql.Tx) error {
+// a raw sql query that can be used for up or down.
+type String string
+
+func (m String) Exec(db *sql.Tx) error {
 	_, err := db.Exec(string(m))
 	return err
 }

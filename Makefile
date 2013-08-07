@@ -1,6 +1,7 @@
 # general variables
 BUILD_ROOT=${PWD}
 GIT_COMMIT=$(shell cd ${BUILD_ROOT} && git rev-list -n 1 --abbrev-commit HEAD)
+SQLITE3_DB_PATH=${PWD}/data/mtrack.sqlite
 
 # distribution variables
 DIST=${BUILD_ROOT}/dist
@@ -56,6 +57,11 @@ dist: clean ${DIST_FILE}
 server: ${MTRACK_BIN} ${STATIC_ROOT_DIST}
 
 client: ${MTRACK_CLIENT_BIN}
+
+drop:
+	rm ${SQLITE3_DB_PATH}
+
+.PHONY : drop
 
 ${DIST_FILE}: ${DIST} ${MTRACK_VERSION_BIN} ${STATIC_ROOT_VERSION_DIST}
 	cd $(shell dirname ${DIST}) && tar cvzf $@ $(shell basename ${DIST})

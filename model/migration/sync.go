@@ -9,6 +9,7 @@ package migration
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 )
 
 var (
@@ -30,7 +31,7 @@ func Initialize(db *sql.DB) error {
 }
 
 func Applied(db *sql.DB) ([]string, error) {
-	rows, err := db.Query(_CREATE)
+	rows, err := db.Query(_SELECT)
 	if err != nil {
 		return nil, err
 	}
@@ -42,6 +43,7 @@ func Applied(db *sql.DB) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		names = append(names, name)
 	}
 
 	err = rows.Err()
@@ -59,7 +61,11 @@ const (
 	Down
 )
 
-func Apply(db *sql.DB, dir Direction, n int, ms ...Interface) error {
+func Apply(db *sql.DB, dir Direction, n int, seq Sequence) error {
+	if seq.err != nil {
+		return fmt.Errorf("sequence error: %v", seq.err)
+	}
+
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -67,16 +73,28 @@ func Apply(db *sql.DB, dir Direction, n int, ms ...Interface) error {
 
 	var bounds func() (int, int)
 	var next func(int) int
-	var migrate func(m Interface) error
+	var migrate func(string, Interface) error
 	switch dir {
 	case Up:
-		bounds = func() (int, int) { return 0, len(ms) }
+		bounds = func() (int, int) { return 0, seq.Len() }
 		next = func(i int) int { return i + 1 }
-		migrate = func(m Interface) error { return m.Up(tx) }
+		migrate = func(name string, m Interface) error {
+			_, err := tx.Exec(`INSERT INTO Migrations (Name) Values (?)`, name)
+			if err != nil {
+				return err
+			}
+			return m.Up(tx)
+		}
 	case Down:
-		bounds = func() (int, int) { return len(ms) - 1, -1 }
+		bounds = func() (int, int) { return seq.Len() - 1, -1 }
 		next = func(i int) int { return i - 1 }
-		migrate = func(m Interface) error { return m.Down(tx) }
+		migrate = func(name string, m Interface) error {
+			_, err := tx.Exec(`DELETE FROM Migrations WHERE Name = ?`, name)
+			if err != nil {
+				return err
+			}
+			return m.Down(tx)
+		}
 	default:
 		return fmt.Errorf("unrecognized Direction: %d", dir)
 	}
@@ -93,10 +111,10 @@ func Apply(db *sql.DB, dir Direction, n int, ms ...Interface) error {
 
 	count := 0
 	for i, bound := bounds(); i != bound; i = next(i) {
-		if n > 0 && count >= n {
+		if n >= 0 && count >= n {
 			break
 		}
-		err = rollbackError(migrate(ms[i]))
+		err = rollbackError(migrate(seq.Index(i)))
 		if err != nil {
 			return err
 		}
@@ -108,6 +126,9 @@ func Apply(db *sql.DB, dir Direction, n int, ms ...Interface) error {
 var ErrOutOfOrder = fmt.Errorf("out of order migration")
 
 func Diff(db *sql.DB, seq Sequence) (int, int, error) {
+	if seq.err != nil {
+		return 0, 0, fmt.Errorf("sequence error: %v", seq.err)
+	}
 	names, err := Applied(db)
 	if err != nil {
 		return 0, 0, err
@@ -130,11 +151,16 @@ func Diff(db *sql.DB, seq Sequence) (int, int, error) {
 	return ahead, behind, nil
 }
 
+/*
+a sequence of migrations. analogous to a slice of migrations.
+*/
 type Sequence struct {
 	ms  []*namedMigration
 	err error
 }
 
+// create a migration sequence preallocated with a specified capacity.
+// no memory is allocated if capacity is less than or equal to zero.
 func MakeSequence(capacity int) Sequence {
 	var seq Sequence
 	if capacity > 0 {
@@ -143,14 +169,30 @@ func MakeSequence(capacity int) Sequence {
 	return seq
 }
 
-func (seq Sequence) Len() int {
-	return len(seq.ms)
+func (seq Sequence) Err() error {
+	return seq.err
 }
 
 // a panic occurs if i is out of range.
 func (seq Sequence) Index(i int) (name string, m Interface) {
 	n := seq.ms[i]
 	return n.Name, n.M
+}
+
+func (seq Sequence) Len() int {
+	return len(seq.ms)
+}
+
+func (seq Sequence) Less(i, j int) bool {
+	return seq.ms[i].Name < seq.ms[j].Name
+}
+
+func (seq Sequence) Swap(i, j int) {
+	seq.ms[i], seq.ms[j] = seq.ms[j], seq.ms[i]
+}
+
+func (seq Sequence) Sort() {
+	sort.Sort(seq)
 }
 
 func (seq Sequence) Append(name string, m Interface) Sequence {
@@ -164,5 +206,10 @@ func (seq Sequence) Append(name string, m Interface) Sequence {
 		}
 	}
 	seq.ms = append(seq.ms, &namedMigration{name, m})
+	return seq
+}
+
+func (seq Sequence) Slice(i, j int) Sequence {
+	seq.ms = seq.ms[i:j]
 	return seq
 }
