@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/bitly/go-simplejson"
-	"github.com/bmatsuo/mtrack/jsonapi"
+	"github.com/bmatsuo/mtrack/http/jsonapi"
 	"github.com/bmatsuo/mtrack/model"
 	"github.com/gorilla/mux"
 	"github.com/sauerbraten/persona"

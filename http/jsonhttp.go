@@ -10,7 +10,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/bmatsuo/mtrack/jsonapi"
+	"github.com/bmatsuo/mtrack/http/jsonapi"
 )
 
 func InternalError(resp http.ResponseWriter, req *http.Request, v ...interface{}) {

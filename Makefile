@@ -84,10 +84,12 @@ ${STATIC_ROOT_DIST}: ${STATIC_ROOT_VERSION_DIST}
 	ln -s ${STATIC_ROOT_VERSION_DIST} $@
 
 ${MTRACK_VERSION_BIN}: ${MTRACK_SRC_FILES}
-	cd ${BUILD_ROOT} && go build -o $@
+	go get -d .
+	go build -o $@
 
 ${MTRACK_CLIENT_VERSION_BIN}: ${MTRACK_CLIENT_SRC_FILES}
-	cd ${BUILD_ROOT} && go build -o $@ ./${MTRACK_CLIENT_REL_PATH}
+	go get -d ./${MTRACK_CLIENT_REL_PATH}
+	go build -o $@ ./${MTRACK_CLIENT_REL_PATH}
 
 ${DIST}:
 	mkdir -p $@
