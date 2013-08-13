@@ -4,7 +4,8 @@ GIT_COMMIT=$(shell cd ${BUILD_ROOT} && git rev-list -n 1 --abbrev-commit HEAD)
 SQLITE3_DB_PATH=${PWD}/data/mtrack.sqlite
 
 # distribution variables
-DIST=${BUILD_ROOT}/dist/mtrack-${GIT_COMMIT}
+DIST_ROOT=${BUILD_ROOT}/dist
+DIST=${DIST_ROOT}/mtrack-${GIT_COMMIT}
 DIST_FILE=${DIST}.tar.gz
 DIST_TOOLS=${BUILD_ROOT}/dist/mtrack-tools-${GIT_COMMIT}
 DIST_TOOLS_FILE=${DIST_TOOLS}.tar.gz
@@ -53,7 +54,7 @@ start-dist: server
 build: ${DIST} server client
 
 clean:
-	[ -d ${DIST} ] && rm -r ${DIST} || echo -n
+	[ -d ${DIST_ROOT} ] && ls ${DIST_ROOT} | egrep -v '\.tar\.gz$$' | sed 's:^:${DIST_ROOT}/:' | xargs rm -r || echo -n
 
 .PHONY : clean
 
