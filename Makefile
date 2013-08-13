@@ -31,7 +31,8 @@ STATIC_SOURCE_FILES=$(shell find ${STATIC_ROOT} | egrep '\.(html|css|js)$$')
 help:
 	@echo "make [command]:" 1>&2
 	@echo "\tbuild        compile both the server (including static assets). build client programs" 1>&2
-	@echo "\tclean        remove the dist directory" 1>&2
+	@echo "\tclean        remove build output, but not archived distributions" 1>&2
+	@echo "\tspotless     remove all contents of the dist/ directory" 1>&2
 	@echo "\tdist         create an archive file for distribution of the server" 1>&2
 	@echo "\tdist-tools   create an archive file for distribution of the tooling" 1>&2
 	@echo "\tdist-all     create an archive file for distribution of the server and tooling" 1>&2
@@ -56,7 +57,10 @@ build: ${DIST} server client
 clean:
 	[ -d ${DIST_ROOT} ] && ls ${DIST_ROOT} | egrep -v '\.tar\.gz$$' | sed 's:^:${DIST_ROOT}/:' | xargs rm -r || echo -n
 
-.PHONY : clean
+spotless:
+	[ -d ${DIST_ROOT} ] && rm -r ${DIST_ROOT}/*
+
+.PHONY : clean spotless
 
 ${DIST}:
 	mkdir -p $@
