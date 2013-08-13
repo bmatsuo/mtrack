@@ -50,7 +50,7 @@ start: server
 	${MTRACK_BIN} -config=${PWD}/example.mtrack.toml
 
 start-dist: server
-	${MTRACK_BIN} -media=./data/media -http.static='${STATIC_ROOT_DIST}'
+	${MTRACK_BIN} -http.static='${STATIC_ROOT_DIST}'
 
 build: ${DIST} server client
 
