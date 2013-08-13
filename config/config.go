@@ -8,33 +8,109 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/bmatsuo/mtrack/http"
 	"github.com/bmatsuo/mtrack/model"
 	"github.com/bmatsuo/mtrack/scan"
 )
 
+var Config = struct {
+	HTTP struct {
+		Bind       string
+		StaticRoot string
+	}
+	DB struct {
+		Path string
+	}
+	Root  map[string]*scan.Root
+	Roots []*scan.Root `toml:"-" json:"-"`
+}{}
+
+func loadConfig(path string) (toml.MetaData, error) {
+	var zero toml.MetaData
+	var err error
+	// locate and open the config file. this is funced up
+	var f *os.File
+	paths := make([]string, 0, 3)
+	if path != "" {
+		paths = append(paths, path)
+	} else {
+		home := os.Getenv("HOME")
+		if home != "" {
+			paths = append(paths, ".config", "mtrack.toml")
+		}
+		paths = append(paths, "/etc/mtrack.toml")
+	}
+	for _, path := range paths {
+		f, err = os.Open(path)
+		log.Printf("%q; %T %v", path, err, err)
+		if os.IsNotExist(err) {
+			continue
+		}
+		break
+	}
+	if os.IsNotExist(err) {
+		if path != "" {
+			return zero, fmt.Errorf("path does not exist; %v", path)
+		}
+		return zero, nil
+		// default paths not existing is ok.
+	} else if err != nil {
+		return zero, err
+	}
+
+	defer f.Close()
+	return toml.DecodeReader(f, &Config)
+}
+
 func Configure() error {
-	httpaddr := flag.String("http", ":7890", "http server bind address")
-	// the default here is a developement nicety. not good for production.
-	httpstatic := flag.String("http.static", "http/static", "path to mtrack static files")
-	dbpath := flag.String("db", "./data/mtrack.sqlite", "sqlite3 database path")
-	media := flag.String("media", "", "media directories separated by ':'")
-	scandelay := flag.Uint("scan.delay", 5, "minutes between filesystem scans")
+	flag.StringVar(&Config.HTTP.Bind, "http", ":7890", "http server bind address")
+	flag.StringVar(&Config.DB.Path, "db", "", "sqlite3 database path")
+	configPath := flag.String("config", "", "config file path")
 	flag.Parse()
 
+	_, err := loadConfig(*configPath)
+	if err != nil {
+		return err
+	}
+	if Config.Root == nil {
+		Config.Root = make(map[string]*scan.Root)
+	}
+	Config.Roots = make([]*scan.Root, 0, len(Config.Root))
+	for k, root := range Config.Root {
+		root.Name = k
+		Config.Roots = append(Config.Roots, root)
+	}
+
+	if Config.HTTP.Bind == "" {
+		return fmt.Errorf("unknown http server bind address")
+	}
+	if Config.HTTP.StaticRoot == "" {
+		return fmt.Errorf("unknown static root directory")
+	}
+	if Config.DB.Path == "" {
+		return fmt.Errorf("unknown database path")
+	}
+
 	// setup global config
-	model.DBPath = *dbpath
-	http.HTTPConfig.Addr = *httpaddr
-	http.HTTPConfig.StaticPath = *httpstatic
-	scandelaydur := time.Duration(*scandelay) * time.Minute
-	scanroots := mediaroots(*media)
-	scan.Init(scandelaydur, scanroots)
+	model.DBPath = Config.DB.Path
+	http.HTTPConfig.Addr = Config.HTTP.Bind
+	http.HTTPConfig.StaticPath = Config.HTTP.StaticRoot
+
+	p, err := json.Marshal(Config.Root)
+
+	log.Print(string(p), err)
+	scan.Init(5*time.Minute, Config.Roots) // TODO handle per-root delays
+
 	return nil
 }
 

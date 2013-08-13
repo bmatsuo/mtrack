@@ -1,0 +1,11 @@
+[HTTP]
+Bind = ":7890"
+StaticRoot = "./http/static"
+
+[DB]
+Path = "./data/mtrack.sqlite"
+
+[Root.example]
+Path = "./data/media"
+Exts = [ ".mp4", ".m4v", ".mkv", ".avi" ]
+Scan.Delay = 5 # minutes

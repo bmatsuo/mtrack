@@ -28,6 +28,9 @@ type Root struct {
 	Name string   `json:"name"` // for logging purposes
 	Path string   `json:"path"`
 	Exts []string `json:"exts"`
+	Scan struct {
+		Delay uint64
+	}
 }
 
 // Scans the filesystem looking for media files
@@ -66,32 +69,42 @@ var ErrClosed = fmt.Errorf("closed")
 var DefaultScanner *Scanner
 var DefaultCron *Cron
 
+func defaultCron() *Cron {
+	if DefaultCron == nil {
+		panic("nil DefaultCron")
+	}
+	return DefaultCron
+}
+
+func defaultScanner() *Scanner {
+	if DefaultScanner == nil {
+		panic("nil DefaultScanner")
+	}
+	return DefaultScanner
+}
+
 // Semantically equivalent to
 //		DefaultScanner = NewScanner(roots)
-//		DefaultCron = NewCron(delay)
-// Init() must be called before Start(). Calling Init() again after Start()
-// is not advised. If multiple scanners are needed use *Cron objects directly.
+//		DefaultCron = NewCron(delay, DefaultScanner)
+// Init() must be called before Start().
 func Init(delay time.Duration, roots []*Root) {
 	DefaultScanner = NewScanner(roots)
 	DefaultCron = NewCron(delay, DefaultScanner)
 }
 
-// Semantically equivalent to
-//		DefaultCron.Start(statch)
+// Starts DefaultCron. Panics if DefaultCron is nil.
 func Start(statch chan *CronStatus) {
-	DefaultCron.Start(statch)
+	defaultCron().Start(statch)
 }
 
-// Semantically equivalent to
-//		DefaultCron.Close()
+// Closes DefaultCron. Panics if DefaultCron is nil.
 func Close() error {
-	return DefaultCron.Close()
+	return defaultCron().Close()
 }
 
-// Semantically equivalent to
-//		DefaultScanner.Close()
+// Scans using DefaultScanner. Panics if DefaultScanner is nil.
 func Scan() {
-	DefaultScanner.Scan()
+	defaultScanner().Scan()
 }
 
 // Scans the filesystem periodically for new media.
@@ -129,7 +142,7 @@ func (cron *Cron) Status() *CronStatus {
 // Begin periodically scanning the filesystem for new files.
 // This method is not capable of detecting deleted files.
 func (cron *Cron) Start(statch chan *CronStatus) {
-	go cron.start(statch)
+	go func() { cron.start(statch) }()
 }
 
 func (cron *Cron) start(statch chan *CronStatus) {

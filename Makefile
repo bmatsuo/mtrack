@@ -40,7 +40,7 @@ help:
 .PHONY : help
 
 start: ${MTRACK_VERSION_BIN}
-	${MTRACK_VERSION_BIN} -media=./data/media
+	${MTRACK_VERSION_BIN} -config=${PWD}/example.mtrack.toml
 
 start-dist: ${MTRACK_VERSION_BIN} ${STATIC_ROOT_VERSION_DIST}
 	${MTRACK_VERSION_BIN} -media=./data/media -http.static='${STATIC_ROOT_VERSION_DIST}'
