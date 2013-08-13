@@ -4,26 +4,23 @@ GIT_COMMIT=$(shell cd ${BUILD_ROOT} && git rev-list -n 1 --abbrev-commit HEAD)
 SQLITE3_DB_PATH=${PWD}/data/mtrack.sqlite
 
 # distribution variables
-DIST=${BUILD_ROOT}/dist
-DIST_FILE=${BUILD_ROOT}/dist-${GIT_COMMIT}.tar.gz
+DIST=${BUILD_ROOT}/dist/mtrack-${GIT_COMMIT}
+DIST_FILE=${DIST}.tar.gz
 
 # server binary
 MTRACK_SRC_FILES=$(shell find ${BUILD_ROOT} -name '*.go' | egrep -v '^${BUILD_ROOT}/tools')
 MTRACK_BIN=${DIST}/mtrack
-MTRACK_VERSION_BIN=${MTRACK_BIN}-${GIT_COMMIT}
 
 # command-line client binary
 MTRACK_CLIENT_REL_PATH=tools/mtrack-client
 MTRACK_CLIENT_PATH=${BUILD_ROOT}/${MTRACK_CLIENT_REL_PATH}
 MTRACK_CLIENT_SRC_FILES=$(shell find ${MTRACK_CLIENT_PATH} -name '*.go')
 MTRACK_CLIENT_BIN=${DIST}/mtrack-client
-MTRACK_CLIENT_VERSION_BIN=${MTRACK_CLIENT_BIN}-${GIT_COMMIT}
 
 # static files (eventually some kind of asset pipeline)
 STATIC_ROOT_REL=http/static
 STATIC_ROOT=${BUILD_ROOT}/${STATIC_ROOT_REL}
 STATIC_ROOT_DIST=${DIST}/static
-STATIC_ROOT_VERSION_DIST=${STATIC_ROOT_DIST}-${GIT_COMMIT}
 STATIC_SOURCE_FILES=$(shell find ${STATIC_ROOT} | egrep '\.(html|css|js)$$')
 
 help:
@@ -39,11 +36,11 @@ help:
 
 .PHONY : help
 
-start: ${MTRACK_VERSION_BIN}
-	${MTRACK_VERSION_BIN} -config=${PWD}/example.mtrack.toml
+start: ${MTRACK_BIN}
+	${MTRACK_BIN} -config=${PWD}/example.mtrack.toml
 
-start-dist: ${MTRACK_VERSION_BIN} ${STATIC_ROOT_VERSION_DIST}
-	${MTRACK_VERSION_BIN} -media=./data/media -http.static='${STATIC_ROOT_VERSION_DIST}'
+start-dist: ${MTRACK_BIN} ${STATIC_ROOT_DIST}
+	${MTRACK_BIN} -media=./data/media -http.static='${STATIC_ROOT_DIST}'
 
 build: ${DIST} server client
 
@@ -63,37 +60,25 @@ drop:
 
 .PHONY : drop
 
-${DIST_FILE}: ${DIST} ${MTRACK_VERSION_BIN} ${STATIC_ROOT_VERSION_DIST}
+${DIST_FILE}: ${DIST} ${MTRACK_BIN} ${STATIC_ROOT_DIST}
 	cd $(shell dirname ${DIST}) && tar cvzf $@ $(shell basename ${DIST})
 
 # NOTE
-# the symbolic links made for ${MTRACK_BIN}, ${STATIC_ROOT_VERSION_DIST},
+# the symbolic links made for ${MTRACK_BIN}, ${STATIC_ROOT_DIST},
 # and ${MTRACK_CLIENT_BIN} may not be of much use in a production scenario.
 # they are provided for more rapid development.
 
-${MTRACK_BIN}: ${MTRACK_VERSION_BIN}
-	rm -f $@
-	ln -s ${MTRACK_VERSION_BIN} $@
-
-${MTRACK_CLIENT_BIN}: ${MTRACK_CLIENT_VERSION_BIN}
-	rm -f $@
-	ln -s ${MTRACK_CLIENT_VERSION_BIN} $@
-
-${STATIC_ROOT_DIST}: ${STATIC_ROOT_VERSION_DIST}
-	rm -f $@
-	ln -s ${STATIC_ROOT_VERSION_DIST} $@
-
-${MTRACK_VERSION_BIN}: ${MTRACK_SRC_FILES}
+${MTRACK_BIN}: ${MTRACK_SRC_FILES}
 	go get -d .
 	go build -o $@
 
-${MTRACK_CLIENT_VERSION_BIN}: ${MTRACK_CLIENT_SRC_FILES}
+${MTRACK_CLIENT_BIN}: ${MTRACK_CLIENT_SRC_FILES}
 	go get -d ./${MTRACK_CLIENT_REL_PATH}
 	go build -o $@ ./${MTRACK_CLIENT_REL_PATH}
 
 ${DIST}:
 	mkdir -p $@
 
-${STATIC_ROOT_VERSION_DIST}: ${STATIC_SOURCE_FILES}
+${STATIC_ROOT_DIST}: ${STATIC_SOURCE_FILES}
 	mkdir -p $@
 	rsync -auv ${STATIC_ROOT}/ $@
