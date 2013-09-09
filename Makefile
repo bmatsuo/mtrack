@@ -47,10 +47,10 @@ help:
 .PHONY : help
 
 start: server
-	${MTRACK_BIN} -config=${PWD}/example.mtrack.toml
+	${MTRACK_BIN} -config="${PWD}/example.mtrack.toml"
 
 start-dist: server
-	${MTRACK_BIN} -http.static='${STATIC_ROOT_DIST}'
+	${MTRACK_BIN} -config="${PWD}/example.mtrack.toml"
 
 build: ${DIST} server client
 
