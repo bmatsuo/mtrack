@@ -1,15 +1,17 @@
 # general variables
 BUILD_ROOT=${PWD}
 GIT_COMMIT=$(shell cd ${BUILD_ROOT} && git rev-list -n 1 --abbrev-commit HEAD)
+GOOS=$(shell go env | grep ^GOOS= | awk -F= '{print $$2}' | tr -d '"')
+GOARCH=$(shell go env | grep ^GOARCH= | awk -F= '{print $$2}' | tr -d '"')
 SQLITE3_DB_PATH=${PWD}/data/mtrack.sqlite
 
 # distribution variables
 DIST_ROOT=${BUILD_ROOT}/dist
-DIST=${DIST_ROOT}/mtrack-${GIT_COMMIT}
+DIST=${DIST_ROOT}/mtrack-${GIT_COMMIT}-${GOOS}-${GOARCH}
 DIST_FILE=${DIST}.tar.gz
-DIST_TOOLS=${BUILD_ROOT}/dist/mtrack-tools-${GIT_COMMIT}
+DIST_TOOLS=${BUILD_ROOT}/dist/mtrack-tools-${GIT_COMMIT}-${GOOS}-${GOARCH}
 DIST_TOOLS_FILE=${DIST_TOOLS}.tar.gz
-DIST_ALL=${BUILD_ROOT}/dist/mtrack-all-${GIT_COMMIT}
+DIST_ALL=${BUILD_ROOT}/dist/mtrack-all-${GIT_COMMIT}-${GOOS}-${GOARCH}
 DIST_ALL_FILE=${DIST_ALL}.tar.gz
 
 # server binary
