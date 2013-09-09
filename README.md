@@ -14,12 +14,13 @@ Install
 ```
 - Create a shell script to run the server
 ```
-    $ echo '#!/bin/bash' > /usr/local/bin/mtrack
-    $ echo /usr/local/share/mtrack/mtrack-123abc/mtrack -config /etc/mtrack.toml >> /usr/local/bin/mtrack
+    $ sudo echo '#!/bin/bash' > /usr/local/bin/mtrack
+    $ sudo echo /usr/local/share/mtrack/mtrack-123abc/mtrack -config /etc/mtrack.toml >> /usr/local/bin/mtrack
+    $ sudo chmod +x /usr/local/bin/mtrack
 ```
 - Create a configuration file
 ```
-    $ sudo cat > /etc/.mtrack.toml
+    $ sudo cat > /etc/mtrack.toml
     [HTTP]
     Bind = ":7890"
     StaticRoot = "/usr/local/share/mtrack/mtrack-123abc/static"
