@@ -1,5 +1,7 @@
 [godoc.org]: http://godoc.org/github.com/bmatsuo/mtrack/ "godoc.org"
 
+This program is still under development and may change radically without notice.
+
 Install
 =======
 
